@@ -14,7 +14,7 @@ A lightweight Chrome extension (Manifest V3) that displays real-time performance
 - **Network** — estimated downlink (Mbps), RTT (ms), and connection type (`4g`/`3g`/`2g`) via `navigator.connection`
 - **30-second history charts** — canvas-drawn area+line graphs for FPS, RAM, and CPU
 - **Always-visible overlay** — draggable widget injected into every page so metrics stay visible while you interact with the site
-- **Export snapshot** — downloads a self-contained HTML performance report with charts, stats table (avg/min/max), long task log, and 30-second raw history
+- **Export snapshot** — downloads a self-contained HTML performance report with a stats table (avg/min/max), Core Web Vitals badges, long task log with script attribution (Chrome 123+), and network/system details
 - **RAM alert notification** — fires a browser notification when JS heap exceeds 500 MB (configurable)
 
 ## Installation

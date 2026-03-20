@@ -33,14 +33,17 @@ setInterval(async () => {
 	prevCpuInfo = info;
 }, 1000);
 
-chrome.runtime.onMessage.addListener((msg, sender) => {
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 	if (msg.type !== 'PERF_DATA') return;
 
 	const { data } = msg;
 	const tabId = sender.tab?.id;
-	if (!tabId) return;
+	if (!tabId) { sendResponse({}); return true; }
 
-	// Salva ultimo snapshot per questa tab
+	chrome.storage.session.get('cpu_usage', (res) => {
+		sendResponse({ cpu_usage: res.cpu_usage ?? 0 });
+	});
+
 	chrome.storage.session.set({ [`tab_${tabId}`]: data });
 
 	// Notifica se RAM supera soglia

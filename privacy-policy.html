@@ -40,19 +40,26 @@
   <table>
     <thead><tr><th>Permission</th><th>Purpose</th></tr></thead>
     <tbody>
-      <tr><td><code>tabs</code></td><td>Identify the active tab to key per-tab metrics in session storage</td></tr>
+      <tr><td><code>activeTab</code></td><td>Access the currently active tab to display its hostname</td></tr>
+      <tr><td><code>tabs</code></td><td>Listen for tab close events to clean up session data</td></tr>
       <tr><td><code>storage</code></td><td>Store performance snapshots in <code>chrome.storage.session</code></td></tr>
       <tr><td><code>notifications</code></td><td>Alert the user when JS heap RAM exceeds the configured threshold</td></tr>
-      <tr><td><code>scripting</code></td><td>Reserved for future programmatic script injection</td></tr>
+      <tr><td><code>scripting</code></td><td>Inject the content script into pages to collect metrics</td></tr>
       <tr><td><code>system.cpu</code></td><td>Read system CPU usage to display in the popup</td></tr>
-      <tr><td><code>&lt;all_urls&gt;</code></td><td>Inject the content script into every page to collect metrics</td></tr>
+      <tr><td><code>&lt;all_urls&gt;</code></td><td>Allow the content script to run on every page</td></tr>
     </tbody>
   </table>
 
   <h2>Third-party services</h2>
   <p>PerfMonitor does not use any third-party SDKs, analytics libraries, or external APIs. No network requests are made by the extension.</p>
 
+  <h2>GDPR (EU users)</h2>
+  <p><strong>Data controller:</strong> Tiziano Cappai — contact via <a href="https://github.com/tizianocappai/performance-extension/issues">GitHub Issues</a>.</p>
+  <p><strong>Legal basis for processing:</strong> Legitimate interest (Article 6(1)(f) GDPR) — the extension processes only local, session-scoped technical metrics strictly necessary to provide the service the user has installed.</p>
+  <p><strong>Your rights:</strong> Under the GDPR you have the right to access, rectification, erasure, restriction of processing, and data portability. Since PerfMonitor stores no data outside your own device and all data is cleared automatically at session end, these rights are fulfilled by design. For any inquiry, open an issue on GitHub.</p>
+  <p><strong>Data transfers:</strong> No data is transferred outside your device. No third countries are involved.</p>
+
   <h2>Contact</h2>
-  <p>For questions or concerns, open an issue at the project repository.</p>
+  <p>For questions or concerns, open an issue at <a href="https://github.com/tizianocappai/performance-extension/issues">github.com/tizianocappai/performance-extension</a>.</p>
 </body>
 </html>

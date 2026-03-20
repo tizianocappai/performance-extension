@@ -26,17 +26,28 @@ Session data for a tab is deleted immediately when that tab is closed. Clicking 
 
 | Permission | Purpose |
 |---|---|
-| `tabs` | Identify the active tab to key per-tab metrics in session storage |
+| `activeTab` | Access the currently active tab to display its hostname |
+| `tabs` | Listen for tab close events to clean up session data |
 | `storage` | Store performance snapshots in `chrome.storage.session` |
 | `notifications` | Alert the user when JS heap RAM exceeds the configured threshold |
-| `scripting` | Reserved for future programmatic script injection |
+| `scripting` | Inject the content script into pages to collect metrics |
 | `system.cpu` | Read system CPU usage to display in the popup |
-| `<all_urls>` | Inject the content script into every page to collect metrics |
+| `<all_urls>` | Allow the content script to run on every page |
 
 ## Third-party services
 
 PerfMonitor does not use any third-party SDKs, analytics libraries, or external APIs. No network requests are made by the extension.
 
+## GDPR (EU users)
+
+**Data controller:** Tiziano Cappai — contact via [GitHub Issues](https://github.com/tizianocappai/performance-extension/issues).
+
+**Legal basis for processing:** Legitimate interest (Article 6(1)(f) GDPR) — the extension processes only local, session-scoped technical metrics strictly necessary to provide the service the user has installed.
+
+**Your rights:** Under the GDPR you have the right to access, rectification, erasure, restriction of processing, and data portability. Since PerfMonitor stores no data outside your own device and all data is cleared automatically at session end, these rights are fulfilled by design. For any inquiry, open an issue on GitHub.
+
+**Data transfers:** No data is transferred outside your device. No third countries are involved.
+
 ## Contact
 
-For questions or concerns, open an issue at the project repository.
+For questions or concerns, open an issue at [github.com/tizianocappai/performance-extension](https://github.com/tizianocappai/performance-extension/issues).

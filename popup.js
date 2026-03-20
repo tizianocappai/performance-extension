@@ -198,9 +198,11 @@ async function render() {
 
 async function exportSnapshot() {
 	if (!tabId) return;
-	const result = await chrome.storage.session.get([`tab_${tabId}`, 'cpu_usage']);
+	const result = await chrome.storage.session.get([`tab_${tabId}`, 'cpu_usage', 'system_memory', `tab_${tabId}_proc_mem`]);
 	const data = result[`tab_${tabId}`];
-	const cpuPct = result['cpu_usage'] ?? 0;
+	const cpuPct    = result['cpu_usage'] ?? 0;
+	const sysMem    = result['system_memory'] ?? null;
+	const procMemMB = result[`tab_${tabId}_proc_mem`] ?? null;
 	if (!data) return;
 
 	const ts = new Date(data.ts);
@@ -216,6 +218,12 @@ async function exportSnapshot() {
 	const fpsStatus = data.fps < 30   ? ['Critical', '#b91c1c'] : data.fps < 50   ? ['Warning', '#b45309'] : ['Good', '#15803d'];
 	const cpuStatus = cpuPct > 80     ? ['Critical', '#b91c1c'] : cpuPct > 50     ? ['Warning', '#b45309'] : ['Good', '#15803d'];
 	const ltStatus  = data.longTasks > 10 ? ['High', '#b91c1c'] : data.longTasks > 0 ? ['Present', '#b45309'] : ['None', '#15803d'];
+
+	// CWV statuses (Google thresholds)
+	const fcpStatus = !data.fcp ? ['—', '#6b7280'] : data.fcp >= 3000 ? ['Poor', '#b91c1c']       : data.fcp >= 1800 ? ['Needs Work', '#b45309'] : ['Good', '#15803d'];
+	const lcpStatus = !data.lcp ? ['—', '#6b7280'] : data.lcp >= 4000 ? ['Poor', '#b91c1c']       : data.lcp >= 2500 ? ['Needs Work', '#b45309'] : ['Good', '#15803d'];
+	const clsStatus = data.cls >= 0.25              ? ['Poor', '#b91c1c']       : data.cls >= 0.1  ? ['Needs Work', '#b45309'] : ['Good', '#15803d'];
+	const inpStatus = !data.inp ? ['—', '#6b7280'] : data.inp >= 500   ? ['Poor', '#b91c1c']       : data.inp >= 200  ? ['Needs Work', '#b45309'] : ['Good', '#15803d'];
 
 	const avgFps = fpsHistory.filter(v => v > 0);
 	const avgRam = ramHistory.filter(v => v > 0);
@@ -326,17 +334,22 @@ async function exportSnapshot() {
       <div class="report-meta-item"><strong>${new URL(data.url).hostname}</strong>Page</div>
       <div class="report-meta-item"><strong>${HISTORY_LEN}s</strong>History window</div>
       <div class="report-meta-item"><strong>${data.longTasks}</strong>Total long tasks</div>
+      ${data.effectiveType ? `<div class="report-meta-item"><strong>${data.effectiveType}${data.downlink ? ' · ' + data.downlink + ' Mbps' : ''}</strong>Network</div>` : ''}
     </div>
   </div>
 
   <!-- Summary -->
   <section>
     <h2>Summary</h2>
-    <div class="summary-grid">
+    <div class="summary-grid" style="grid-template-columns:repeat(4,1fr)">
       ${badge('JS Heap RAM', `${ramStatus[0]} — ${data.ramMB} MB`, ramStatus[1])}
       ${badge('Frame Rate', `${fpsStatus[0]} — ${data.fps} fps`, fpsStatus[1])}
       ${badge('CPU Usage', `${cpuStatus[0]} — ${cpuPct}%`, cpuStatus[1])}
       ${badge('Long Tasks', `${ltStatus[0]} — ${data.longTasks} task${data.longTasks !== 1 ? 's' : ''}`, ltStatus[1])}
+      ${badge('FCP', `${fcpStatus[0]}${data.fcp ? ' — ' + data.fcp + ' ms' : ''}`, fcpStatus[1])}
+      ${badge('LCP', `${lcpStatus[0]}${data.lcp ? ' — ' + data.lcp + ' ms' : ''}`, lcpStatus[1])}
+      ${badge('CLS', `${clsStatus[0]} — ${data.cls.toFixed(3)}`, clsStatus[1])}
+      ${badge('INP', `${inpStatus[0]}${data.inp ? ' — ' + data.inp + ' ms' : ''}`, inpStatus[1])}
     </div>
   </section>
 
@@ -378,6 +391,18 @@ async function exportSnapshot() {
           <td>${max(avgRam)} MB</td>
           <td>${data.ramTotalMB} MB allocated · ${data.ramLimitMB} MB limit</td>
         </tr>
+        ${procMemMB !== null ? `<tr>
+          <td><strong>Process RAM</strong></td>
+          <td>${procMemMB} MB</td>
+          <td colspan="3">—</td>
+          <td>Private memory of tab renderer process</td>
+        </tr>` : ''}
+        ${sysMem ? `<tr>
+          <td><strong>System RAM</strong></td>
+          <td>${sysMem.availableMB} MB free</td>
+          <td colspan="3">—</td>
+          <td>Total: ${sysMem.totalMB} MB · Used: ${sysMem.totalMB - sysMem.availableMB} MB</td>
+        </tr>` : ''}
         <tr>
           <td><strong>Frame Rate</strong></td>
           <td>${data.fps} fps</td>
@@ -393,6 +418,46 @@ async function exportSnapshot() {
           <td>${min(avgCpu)}%</td>
           <td>${max(avgCpu)}%</td>
           <td>System-wide average</td>
+        </tr>
+        ${data.downlink ? `<tr>
+          <td><strong>Network</strong></td>
+          <td>${data.downlink} Mbps</td>
+          <td colspan="3">—</td>
+          <td>${data.effectiveType ? 'Type: ' + data.effectiveType : ''}${data.netRtt ? ' · RTT: ' + data.netRtt + ' ms' : ''}</td>
+        </tr>` : ''}
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Core Web Vitals -->
+  <section>
+    <h2>Core Web Vitals</h2>
+    <table class="stats-table">
+      <thead><tr><th>Metric</th><th>Value</th><th>Status</th><th>Good</th><th>Needs Work</th><th>Poor</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>FCP</strong> — First Contentful Paint</td>
+          <td>${data.fcp ? data.fcp + ' ms' : '—'}</td>
+          <td><span style="font-weight:700;color:${fcpStatus[1]}">${fcpStatus[0]}</span></td>
+          <td>&lt; 1,800 ms</td><td>1,800–3,000 ms</td><td>&gt; 3,000 ms</td>
+        </tr>
+        <tr>
+          <td><strong>LCP</strong> — Largest Contentful Paint</td>
+          <td>${data.lcp ? data.lcp + ' ms' : '—'}</td>
+          <td><span style="font-weight:700;color:${lcpStatus[1]}">${lcpStatus[0]}</span></td>
+          <td>&lt; 2,500 ms</td><td>2,500–4,000 ms</td><td>&gt; 4,000 ms</td>
+        </tr>
+        <tr>
+          <td><strong>CLS</strong> — Cumulative Layout Shift</td>
+          <td>${data.cls.toFixed(3)}</td>
+          <td><span style="font-weight:700;color:${clsStatus[1]}">${clsStatus[0]}</span></td>
+          <td>&lt; 0.1</td><td>0.1–0.25</td><td>&gt; 0.25</td>
+        </tr>
+        <tr>
+          <td><strong>INP</strong> — Interaction to Next Paint</td>
+          <td>${data.inp ? data.inp + ' ms' : '—'}</td>
+          <td><span style="font-weight:700;color:${inpStatus[1]}">${inpStatus[0]}</span></td>
+          <td>&lt; 200 ms</td><td>200–500 ms</td><td>&gt; 500 ms</td>
         </tr>
       </tbody>
     </table>

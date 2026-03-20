@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — PerfMonitor</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 48px auto; padding: 0 24px; line-height: 1.6; color: #222; }
+    h1 { font-size: 1.6rem; }
+    h2 { font-size: 1.1rem; margin-top: 2rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+    th { background: #f5f5f5; }
+    code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
+    em { color: #555; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy — PerfMonitor</h1>
+  <p><em>Last updated: March 20, 2026</em></p>
+
+  <h2>What data is collected</h2>
+  <p>PerfMonitor reads the following performance metrics from the currently active browser tab:</p>
+  <ul>
+    <li><strong>JS Heap memory</strong> (used, allocated, and limit) via the <code>performance.memory</code> API</li>
+    <li><strong>Frame rate (FPS)</strong> via <code>requestAnimationFrame</code></li>
+    <li><strong>Long Tasks count</strong> (main-thread blocks &gt; 50 ms) via <code>PerformanceObserver</code></li>
+    <li><strong>CPU usage</strong> (system-wide percentage) via the <code>chrome.system.cpu</code> API</li>
+    <li><strong>Page URL</strong> (used solely to display the hostname in the popup)</li>
+  </ul>
+
+  <h2>How data is stored and used</h2>
+  <p>All data is stored exclusively in <strong><code>chrome.storage.session</code></strong> — a temporary, in-memory store local to your browser that is automatically cleared when the browser is closed. No data is written to disk beyond the browser session.</p>
+  <p>Data is used only to render the metrics displayed in the extension popup. It is never transmitted to any external server, never shared with third parties, and never used for advertising or analytics.</p>
+
+  <h2>Data retention</h2>
+  <p>Session data for a tab is deleted immediately when that tab is closed. Clicking "Reset contatori" in the popup clears all in-memory history instantly.</p>
+
+  <h2>Permissions justification</h2>
+  <table>
+    <thead><tr><th>Permission</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td><code>tabs</code></td><td>Identify the active tab to key per-tab metrics in session storage</td></tr>
+      <tr><td><code>storage</code></td><td>Store performance snapshots in <code>chrome.storage.session</code></td></tr>
+      <tr><td><code>notifications</code></td><td>Alert the user when JS heap RAM exceeds the configured threshold</td></tr>
+      <tr><td><code>scripting</code></td><td>Reserved for future programmatic script injection</td></tr>
+      <tr><td><code>system.cpu</code></td><td>Read system CPU usage to display in the popup</td></tr>
+      <tr><td><code>&lt;all_urls&gt;</code></td><td>Inject the content script into every page to collect metrics</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Third-party services</h2>
+  <p>PerfMonitor does not use any third-party SDKs, analytics libraries, or external APIs. No network requests are made by the extension.</p>
+
+  <h2>Contact</h2>
+  <p>For questions or concerns, open an issue at the project repository.</p>
+</body>
+</html>

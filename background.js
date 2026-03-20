@@ -20,7 +20,7 @@ function calcCpuUsage(prev, curr) {
 		totalDelta += c.total - p.total;
 		idleDelta  += c.idle  - p.idle;
 	});
-	if (totalDelta === 0) return 0;
+	if (totalDelta <= 0 || idleDelta < 0) return 0;
 	return parseFloat(((1 - idleDelta / totalDelta) * 100).toFixed(1));
 }
 
@@ -62,6 +62,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 		notifiedTab.delete(tabId);
 		chrome.storage.session.set({ notifiedTab: [...notifiedTab] });
 	}
+
+	return true; // keep message channel open for async sendResponse
 });
 
 // Pulisce i dati quando una tab viene chiusa

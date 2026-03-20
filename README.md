@@ -12,14 +12,25 @@ A lightweight Chrome extension (Manifest V3) that displays real-time performance
 
 ## Installation
 
-No build step required.
+### From the Chrome Web Store
 
-1. Clone or download this repository.
-2. Open `chrome://extensions/` in Chrome.
-3. Enable **Developer mode** (top-right toggle).
-4. Click **Load unpacked** and select the repository folder.
+Search for **PerfMonitor** in the [Chrome Web Store](https://chrome.google.com/webstore) and click **Add to Chrome**.
+
+### Manual installation (without the Web Store)
+
+No build step required. Works on Chrome, Edge, and any Chromium-based browser.
+
+1. [Download the repository](https://github.com/tizianocappai/performance-extension/archive/refs/heads/main.zip) as a ZIP and extract it — or clone it:
+   ```bash
+   git clone https://github.com/tizianocappai/performance-extension.git
+   ```
+2. Open `chrome://extensions/` in Chrome (or `edge://extensions/` in Edge).
+3. Enable **Developer mode** using the toggle in the top-right corner.
+4. Click **Load unpacked** and select the folder you just extracted.
 
 The extension icon appears in the toolbar. Click it on any page to open the popup.
+
+> **Note:** Browser updates do not remove manually loaded extensions, but a browser restart may require you to re-enable developer mode on some systems. The extension will also show a "Developer mode" warning banner on startup — this is normal for unpacked extensions and can be dismissed.
 
 ## How It Works
 

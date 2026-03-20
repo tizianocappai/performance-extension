@@ -26,6 +26,10 @@
     <li><strong>Frame rate (FPS)</strong> via <code>requestAnimationFrame</code></li>
     <li><strong>Long Tasks</strong> (count, duration in ms, and timestamp of each block &gt; 50 ms) via <code>PerformanceObserver</code></li>
     <li><strong>CPU usage</strong> (system-wide percentage) via the <code>chrome.system.cpu</code> API</li>
+    <li><strong>System RAM</strong> (total capacity and available memory) via the <code>chrome.system.memory</code> API</li>
+    <li><strong>Tab process memory</strong> (private RAM of the renderer process hosting the tab) via the <code>chrome.processes</code> API</li>
+    <li><strong>Core Web Vitals</strong>: FCP, LCP, CLS, and INP via <code>PerformanceObserver</code> — timing values local to the current page load</li>
+    <li><strong>Network conditions</strong>: estimated downlink speed (Mbps), RTT (ms), and connection type via <code>navigator.connection</code> — browser estimates only, no active measurement</li>
     <li><strong>Page URL</strong> (used solely to display the hostname in the popup and in exported snapshots)</li>
   </ul>
 
@@ -33,7 +37,7 @@
   <table>
     <thead><tr><th>Storage</th><th>What is stored</th><th>Persistence</th></tr></thead>
     <tbody>
-      <tr><td><code>chrome.storage.session</code></td><td>Per-tab performance snapshots, CPU usage, RAM alert state</td><td>Cleared when the browser closes</td></tr>
+      <tr><td><code>chrome.storage.session</code></td><td>Per-tab performance snapshots (including CWV, network, process memory), CPU usage, system RAM, RAM alert state</td><td>Cleared when the browser closes</td></tr>
       <tr><td><code>chrome.storage.local</code></td><td>Overlay visibility preference (<code>true</code>/<code>false</code>)</td><td>Persists across browser sessions</td></tr>
     </tbody>
   </table>
@@ -59,6 +63,8 @@
       <tr><td><code>notifications</code></td><td>Alert the user when JS heap RAM exceeds the configured threshold</td></tr>
       <tr><td><code>scripting</code></td><td>Inject the content script into pages to collect metrics and render the overlay widget</td></tr>
       <tr><td><code>system.cpu</code></td><td>Read system CPU usage to display in the popup and overlay</td></tr>
+      <tr><td><code>system.memory</code></td><td>Read total and available system RAM</td></tr>
+      <tr><td><code>processes</code></td><td>Read per-tab renderer process memory to show tab-specific RAM usage</td></tr>
       <tr><td><code>&lt;all_urls&gt;</code></td><td>Allow the content script to run on every page</td></tr>
     </tbody>
   </table>

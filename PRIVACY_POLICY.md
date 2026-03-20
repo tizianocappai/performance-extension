@@ -10,13 +10,17 @@ PerfMonitor reads the following performance metrics from the currently active br
 - **Frame rate (FPS)** via `requestAnimationFrame`
 - **Long Tasks** (count, duration in ms, and timestamp of each block > 50 ms) via `PerformanceObserver`
 - **CPU usage** (system-wide percentage) via the `chrome.system.cpu` API
+- **System RAM** (total capacity and available memory) via the `chrome.system.memory` API
+- **Tab process memory** (private RAM of the renderer process hosting the tab) via the `chrome.processes` API
+- **Core Web Vitals**: FCP, LCP, CLS, and INP via `PerformanceObserver` — timing values local to the current page load
+- **Network conditions**: estimated downlink speed (Mbps), RTT (ms), and connection type (`4g`/`3g`/etc.) via `navigator.connection` — browser estimates only, no active measurement
 - **Page URL** (used solely to display the hostname in the popup and in exported snapshots)
 
 ## How data is stored and used
 
 | Storage | What is stored | Persistence |
 |---|---|---|
-| `chrome.storage.session` | Per-tab performance snapshots, CPU usage, RAM alert state | Cleared when the browser closes |
+| `chrome.storage.session` | Per-tab performance snapshots (including CWV, network, process memory), CPU usage, system RAM, RAM alert state | Cleared when the browser closes |
 | `chrome.storage.local` | Overlay visibility preference (`true`/`false`) | Persists across browser sessions |
 
 No data is ever transmitted to any external server, shared with third parties, or used for advertising or analytics.
@@ -41,6 +45,8 @@ The "Export snapshot" feature generates an HTML file containing the current metr
 | `notifications` | Alert the user when JS heap RAM exceeds the configured threshold |
 | `scripting` | Inject the content script into pages to collect metrics and render the overlay widget |
 | `system.cpu` | Read system CPU usage to display in the popup and overlay |
+| `system.memory` | Read total and available system RAM |
+| `processes` | Read per-tab renderer process memory to show tab-specific RAM usage |
 | `<all_urls>` | Allow the content script to run on every page |
 
 ## Third-party services

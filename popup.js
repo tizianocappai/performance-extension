@@ -27,9 +27,11 @@ document.getElementById('reset-btn').addEventListener('click', () => {
 async function render() {
 	if (!tabId) return;
 
-	const result = await chrome.storage.session.get([`tab_${tabId}`, 'cpu_usage']);
+	const result = await chrome.storage.session.get([`tab_${tabId}`, 'cpu_usage', 'system_memory', `tab_${tabId}_proc_mem`]);
 	const data = result[`tab_${tabId}`];
 	const cpuPct = result['cpu_usage'] ?? 0;
+	const sysMem = result['system_memory'] ?? null;
+	const procMemMB = result[`tab_${tabId}_proc_mem`] ?? null;
 
 	if (!data) return;
 
@@ -60,6 +62,15 @@ async function render() {
 	const cpuColor =
 		cpuPct > 80 ? '#ef4444' : cpuPct > 50 ? '#f59e0b' : '#22c55e';
 
+	// Network
+	const downlinkColor = !data.downlink ? '#555' : data.downlink < 1 ? '#ef4444' : data.downlink < 10 ? '#f59e0b' : '#22c55e';
+
+	// CWV colors (Google thresholds)
+	const fcpColor = !data.fcp ? '#555' : data.fcp >= 3000 ? '#ef4444' : data.fcp >= 1800 ? '#f59e0b' : '#22c55e';
+	const lcpColor = !data.lcp ? '#555' : data.lcp >= 4000 ? '#ef4444' : data.lcp >= 2500 ? '#f59e0b' : '#22c55e';
+	const clsColor = data.cls  >= 0.25  ? '#ef4444' : data.cls  >= 0.1   ? '#f59e0b' : '#22c55e';
+	const inpColor = !data.inp  ? '#555' : data.inp  >= 500   ? '#ef4444' : data.inp  >= 200   ? '#f59e0b' : '#22c55e';
+
 	document.getElementById('main-content').innerHTML = `
     <div class="card">
       <div class="card-label">JS Heap RAM</div>
@@ -73,6 +84,15 @@ async function render() {
         <div class="bar-fill" style="width:${Math.min(ramPct, 100)}%;background:${ramColor}"></div>
       </div>
     </div>
+
+    ${procMemMB !== null ? `
+    <div class="card">
+      <div class="card-label">Memoria processo tab</div>
+      <div class="metric-row">
+        <span class="metric-val" style="color:${procMemMB > 400 ? '#ef4444' : procMemMB > 200 ? '#f59e0b' : '#22c55e'}">${procMemMB}</span>
+        <span class="metric-unit">MB (RAM privata del processo)</span>
+      </div>
+    </div>` : ''}
 
     <div class="card">
       <div class="card-label">FPS (frame rate)</div>
@@ -115,6 +135,55 @@ async function render() {
         <div class="bar-fill" style="width:${Math.min(cpuPct, 100)}%;background:${cpuColor}"></div>
       </div>
       <canvas id="cpu-chart" height="48"></canvas>
+    </div>
+
+    ${sysMem ? `
+    <div class="card">
+      <div class="card-label">RAM di sistema</div>
+      <div class="metric-row">
+        <span class="metric-val" style="color:${sysMem.availableMB < 512 ? '#ef4444' : sysMem.availableMB < 2048 ? '#f59e0b' : '#22c55e'}">${sysMem.availableMB}</span>
+        <span class="metric-unit">MB disponibili</span>
+      </div>
+      <div class="metric-sub">Totale: ${sysMem.totalMB} MB</div>
+      <div class="bar-wrap">
+        <div class="bar-fill" style="width:${Math.min(((sysMem.totalMB - sysMem.availableMB) / sysMem.totalMB) * 100, 100).toFixed(1)}%;background:${sysMem.availableMB < 512 ? '#ef4444' : sysMem.availableMB < 2048 ? '#f59e0b' : '#22c55e'}"></div>
+      </div>
+    </div>` : ''}
+
+    <div class="card">
+      <div class="card-label">Network</div>
+      <div class="metric-row">
+        <span class="metric-val" style="color:${downlinkColor}">${data.downlink || '—'}</span>
+        <span class="metric-unit">Mbps</span>
+        ${data.effectiveType ? `<span class="metric-unit" style="margin-left:6px;background:#1a1a2e;padding:1px 6px;border-radius:4px">${data.effectiveType}</span>` : ''}
+      </div>
+      ${data.netRtt ? `<div class="metric-sub">RTT stimato: ${data.netRtt} ms</div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="card-label">Core Web Vitals</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+        <div>
+          <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.05em">FCP</div>
+          <div style="font-size:18px;font-weight:700;color:${fcpColor}">${data.fcp ? data.fcp + ' ms' : '—'}</div>
+          <div style="font-size:10px;color:#444">First Contentful Paint</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.05em">LCP</div>
+          <div style="font-size:18px;font-weight:700;color:${lcpColor}">${data.lcp ? data.lcp + ' ms' : '—'}</div>
+          <div style="font-size:10px;color:#444">Largest Contentful Paint</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.05em">CLS</div>
+          <div style="font-size:18px;font-weight:700;color:${clsColor}">${data.cls.toFixed(3)}</div>
+          <div style="font-size:10px;color:#444">Cumulative Layout Shift</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:.05em">INP</div>
+          <div style="font-size:18px;font-weight:700;color:${inpColor}">${data.inp ? data.inp + ' ms' : '—'}</div>
+          <div style="font-size:10px;color:#444">Interaction to Next Paint</div>
+        </div>
+      </div>
     </div>
   `;
 

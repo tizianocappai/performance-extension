@@ -33,6 +33,29 @@ setInterval(async () => {
 	prevCpuInfo = info;
 }, 1000);
 
+// System memory polling
+setInterval(async () => {
+	const info = await chrome.system.memory.getInfo();
+	const totalMB     = Math.round(info.capacity / 1048576);
+	const availableMB = Math.round(info.availableCapacity / 1048576);
+	chrome.storage.session.set({ system_memory: { totalMB, availableMB } });
+}, 1000);
+
+// Tab process memory — fires ~1s with memory included
+if (chrome.processes?.onUpdatedWithMemory) {
+	chrome.processes.onUpdatedWithMemory.addListener((processes) => {
+		const updates = {};
+		for (const proc of Object.values(processes)) {
+			if (!proc.tabs?.length) continue;
+			const memMB = Math.round((proc.privateMemory ?? 0) / 1048576);
+			for (const tabId of proc.tabs) {
+				updates[`tab_${tabId}_proc_mem`] = memMB;
+			}
+		}
+		if (Object.keys(updates).length) chrome.storage.session.set(updates);
+	});
+}
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 	if (msg.type !== 'PERF_DATA') return;
 
@@ -68,7 +91,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 // Pulisce i dati quando una tab viene chiusa
 chrome.tabs.onRemoved.addListener((tabId) => {
-	chrome.storage.session.remove(`tab_${tabId}`);
+	chrome.storage.session.remove([`tab_${tabId}`, `tab_${tabId}_proc_mem`]);
 	notifiedTab.delete(tabId);
 	chrome.storage.session.set({ notifiedTab: [...notifiedTab] });
 });

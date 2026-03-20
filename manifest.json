@@ -1,8 +1,8 @@
 {
 	"manifest_version": 3,
 	"name": "PerfMonitor",
-	"version": "1.0.1",
-	"description": "Monitor JS heap RAM, FPS, CPU usage, and long tasks for the current page.",
+	"version": "1.0.2",
+	"description": "Monitor JS heap RAM, FPS, CPU, Core Web Vitals, network, and long tasks for the current page.",
 	"homepage_url": "https://tizianocappai.github.io/performance-extension/",
 	"permissions": [
 		"activeTab",
@@ -10,7 +10,9 @@
 		"storage",
 		"notifications",
 		"scripting",
-		"system.cpu"
+		"system.cpu",
+		"system.memory",
+		"processes"
 	],
 	"background": {
 		"service_worker": "background.js"

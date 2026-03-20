@@ -19,6 +19,30 @@ let ramMB = 0,
 	ramTotalMB = 0,
 	ramLimitMB = 0;
 
+// Core Web Vitals
+let fcp = 0;   // First Contentful Paint (ms) — set once
+let lcp = 0;   // Largest Contentful Paint (ms) — last candidate
+let cls = 0;   // Cumulative Layout Shift (score, 3 decimals)
+let inp = 0;   // Interaction to Next Paint (ms) — p98 of interactions
+const inpDurations = [];
+
+// Network
+let downlink = 0;        // estimated bandwidth in Mbps
+let netRtt = 0;          // estimated RTT in ms
+let effectiveType = '';  // '4g' | '3g' | '2g' | 'slow-2g'
+
+function readNetwork() {
+	const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+	if (!conn) return;
+	downlink     = conn.downlink      ?? 0;
+	netRtt       = conn.rtt           ?? 0;
+	effectiveType = conn.effectiveType ?? '';
+}
+readNetwork();
+// Update when network conditions change
+(navigator.connection || navigator.mozConnection || navigator.webkitConnection)
+	?.addEventListener('change', readNetwork);
+
 // FPS counter
 function countFPS() {
 	frameCount++;
@@ -43,6 +67,47 @@ if ('PerformanceObserver' in window) {
 			});
 		});
 		obs.observe({ type: 'longtask', buffered: true });
+	} catch (e) {}
+
+	// FCP — First Contentful Paint
+	try {
+		new PerformanceObserver((list) => {
+			for (const entry of list.getEntries()) {
+				if (entry.name === 'first-contentful-paint') {
+					fcp = Math.round(entry.startTime);
+				}
+			}
+		}).observe({ type: 'paint', buffered: true });
+	} catch (e) {}
+
+	// LCP — Largest Contentful Paint (updates until first user interaction)
+	try {
+		new PerformanceObserver((list) => {
+			const entries = list.getEntries();
+			if (entries.length) lcp = Math.round(entries[entries.length - 1].startTime);
+		}).observe({ type: 'largest-contentful-paint', buffered: true });
+	} catch (e) {}
+
+	// CLS — Cumulative Layout Shift (only shifts without recent input)
+	try {
+		new PerformanceObserver((list) => {
+			for (const entry of list.getEntries()) {
+				if (!entry.hadRecentInput) cls = parseFloat((cls + entry.value).toFixed(4));
+			}
+		}).observe({ type: 'layout-shift', buffered: true });
+	} catch (e) {}
+
+	// INP — Interaction to Next Paint (p98 of all interaction durations)
+	try {
+		new PerformanceObserver((list) => {
+			for (const entry of list.getEntries()) {
+				if (entry.interactionId > 0) {
+					inpDurations.push(entry.duration);
+					const sorted = [...inpDurations].sort((a, b) => a - b);
+					inp = Math.round(sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.98))]);
+				}
+			}
+		}).observe({ type: 'event', buffered: true, durationThreshold: 16 });
 	} catch (e) {}
 }
 
@@ -199,7 +264,7 @@ setInterval(() => {
 	}
 
 	chrome.runtime.sendMessage(
-		{ type: 'PERF_DATA', data: { fps, longTasks, recentLongTasks: [...recentLongTasks], ramMB, ramTotalMB, ramLimitMB, url: location.href, ts: Date.now() } },
+		{ type: 'PERF_DATA', data: { fps, longTasks, recentLongTasks: [...recentLongTasks], ramMB, ramTotalMB, ramLimitMB, fcp, lcp, cls, inp, downlink, netRtt, effectiveType, url: location.href, ts: Date.now() } },
 		() => {
 			void chrome.runtime.lastError;
 			updateOverlay();

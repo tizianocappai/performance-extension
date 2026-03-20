@@ -24,7 +24,7 @@
   <ul>
     <li><strong>JS Heap memory</strong> (used, allocated, and limit) via the <code>performance.memory</code> API</li>
     <li><strong>Frame rate (FPS)</strong> via <code>requestAnimationFrame</code></li>
-    <li><strong>Long Tasks</strong> (count, duration in ms, and timestamp of each block &gt; 50 ms) via <code>PerformanceObserver</code></li>
+    <li><strong>Long Tasks</strong> (count, duration in ms, and timestamp) via <code>PerformanceObserver</code>; on Chrome 123+ also script attribution via the Long Animation Frames API: source file name, function name, and invoker string (e.g. <code>BUTTON#id.onclick</code>) — all derived from the page's own JavaScript, never from user input</li>
     <li><strong>CPU usage</strong> (system-wide percentage) via the <code>chrome.system.cpu</code> API</li>
     <li><strong>System RAM</strong> (total capacity and available memory) via the <code>chrome.system.memory</code> API</li>
     <li><strong>Tab process memory</strong> (private RAM of the renderer process hosting the tab) via the <code>chrome.processes</code> API</li>

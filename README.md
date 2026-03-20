@@ -9,7 +9,7 @@ A lightweight Chrome extension (Manifest V3) that displays real-time performance
 - **System RAM** — total and available system memory via `chrome.system.memory`
 - **FPS** — live frame rate from `requestAnimationFrame`, color-coded (green ≥ 50, orange < 50, red < 30)
 - **CPU Usage** — system-wide percentage sampled every second via `chrome.system.cpu`, color-coded (green ≤ 50%, orange ≤ 80%, red > 80%)
-- **Long Tasks** — count and detail log (duration + timestamp) of every main-thread block exceeding 50 ms
+- **Long Tasks** — count and detail log of every main-thread block exceeding 50 ms; on Chrome 123+ includes script attribution via the Long Animation Frames API (source file, function name, invoker such as `BUTTON#save.onclick`)
 - **Core Web Vitals** — FCP, LCP, CLS, INP with Google threshold color coding (good/needs improvement/poor)
 - **Network** — estimated downlink (Mbps), RTT (ms), and connection type (`4g`/`3g`/`2g`) via `navigator.connection`
 - **30-second history charts** — canvas-drawn area+line graphs for FPS, RAM, and CPU
@@ -51,7 +51,7 @@ content.js ──(chrome.runtime.sendMessage every 1s)──► background.js
 
 | File | Role |
 |---|---|
-| `content.js` | Injected into every page. Collects FPS, heap memory, long tasks, Core Web Vitals (FCP/LCP/CLS/INP via `PerformanceObserver`), and network conditions (`navigator.connection`). Sends `PERF_DATA` each second. Renders the draggable overlay widget in the page DOM. |
+| `content.js` | Injected into every page. Collects FPS, heap memory, Core Web Vitals (FCP/LCP/CLS/INP), network conditions, and long tasks — using `long-animation-frame` on Chrome 123+ for script attribution, falling back to `longtask`. Sends `PERF_DATA` each second. Renders the draggable overlay widget. |
 | `background.js` | Service worker. Receives `PERF_DATA`, samples CPU (`chrome.system.cpu`), system RAM (`chrome.system.memory`), and tab process memory (`chrome.processes.onUpdatedWithMemory`). Stores all data per-tab in `chrome.storage.session`. Fires RAM alert notification with hysteresis. Cleans up on tab close. |
 | `popup.js` | Polls session storage for the active tab, maintains 30-point rolling histories for RAM, FPS, and CPU, renders all metric cards and three canvas charts. Handles export snapshot and sends `PM_SHOW_OVERLAY` to the content script on open. |
 

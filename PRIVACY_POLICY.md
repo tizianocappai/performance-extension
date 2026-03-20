@@ -8,7 +8,7 @@ PerfMonitor reads the following performance metrics from the currently active br
 
 - **JS Heap memory** (used, allocated, and limit) via the `performance.memory` API
 - **Frame rate (FPS)** via `requestAnimationFrame`
-- **Long Tasks** (count, duration in ms, and timestamp of each block > 50 ms) via `PerformanceObserver`
+- **Long Tasks** (count, duration in ms, and timestamp) via `PerformanceObserver`; on Chrome 123+ also script attribution via the Long Animation Frames API: source file name, function name, and invoker string (e.g. `BUTTON#id.onclick`) — all derived from the page's own JavaScript, never from user input
 - **CPU usage** (system-wide percentage) via the `chrome.system.cpu` API
 - **System RAM** (total capacity and available memory) via the `chrome.system.memory` API
 - **Tab process memory** (private RAM of the renderer process hosting the tab) via the `chrome.processes` API

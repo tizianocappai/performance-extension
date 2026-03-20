@@ -7,7 +7,11 @@ if (document.getElementById('__perfmonitor_overlay__')) {
 }
 
 function isContextValid() {
-	try { return !!chrome.runtime?.id; } catch { return false; }
+	try {
+		return !!chrome.runtime?.id;
+	} catch {
+		return false;
+	}
 }
 
 let fps = 0,
@@ -20,28 +24,34 @@ let ramMB = 0,
 	ramLimitMB = 0;
 
 // Core Web Vitals
-let fcp = 0;   // First Contentful Paint (ms) — set once
-let lcp = 0;   // Largest Contentful Paint (ms) — last candidate
-let cls = 0;   // Cumulative Layout Shift (score, 3 decimals)
-let inp = 0;   // Interaction to Next Paint (ms) — p98 of interactions
+let fcp = 0; // First Contentful Paint (ms) — set once
+let lcp = 0; // Largest Contentful Paint (ms) — last candidate
+let cls = 0; // Cumulative Layout Shift (score, 3 decimals)
+let inp = 0; // Interaction to Next Paint (ms) — p98 of interactions
 const inpDurations = [];
 
 // Network
-let downlink = 0;        // estimated bandwidth in Mbps
-let netRtt = 0;          // estimated RTT in ms
-let effectiveType = '';  // '4g' | '3g' | '2g' | 'slow-2g'
+let downlink = 0; // estimated bandwidth in Mbps
+let netRtt = 0; // estimated RTT in ms
+let effectiveType = ''; // '4g' | '3g' | '2g' | 'slow-2g'
 
 function readNetwork() {
-	const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+	const conn =
+		navigator.connection ||
+		navigator.mozConnection ||
+		navigator.webkitConnection;
 	if (!conn) return;
-	downlink     = conn.downlink      ?? 0;
-	netRtt       = conn.rtt           ?? 0;
+	downlink = conn.downlink ?? 0;
+	netRtt = conn.rtt ?? 0;
 	effectiveType = conn.effectiveType ?? '';
 }
 readNetwork();
 // Update when network conditions change
-(navigator.connection || navigator.mozConnection || navigator.webkitConnection)
-	?.addEventListener('change', readNetwork);
+(
+	navigator.connection ||
+	navigator.mozConnection ||
+	navigator.webkitConnection
+)?.addEventListener('change', readNetwork);
 
 // FPS counter
 function countFPS() {
@@ -56,18 +66,51 @@ function countFPS() {
 }
 requestAnimationFrame(countFPS);
 
-// Long Tasks observer
+// Long Tasks observer — prefers Long Animation Frames (Chrome 123+) for script attribution
 if ('PerformanceObserver' in window) {
-	try {
-		const obs = new PerformanceObserver((list) => {
-			list.getEntries().forEach((entry) => {
-				longTasks++;
-				recentLongTasks.push({ duration: Math.round(entry.duration), ts: Date.now() });
-				if (recentLongTasks.length > 10) recentLongTasks.shift();
-			});
-		});
-		obs.observe({ type: 'longtask', buffered: true });
-	} catch (e) {}
+	const supported = PerformanceObserver.supportedEntryTypes ?? [];
+
+	if (supported.includes('long-animation-frame')) {
+		// LoAF: gives script URL, function name, invoker
+		try {
+			new PerformanceObserver((list) => {
+				for (const entry of list.getEntries()) {
+					longTasks++;
+					const scripts = (entry.scripts ?? [])
+						.map((s) => ({
+							url: s.sourceURL
+								? s.sourceURL.split('/').pop().split('?')[0]
+								: '',
+							fn: s.sourceFunctionName || '',
+							invoker: s.invoker || '',
+							duration: Math.round(s.duration),
+						}))
+						.filter((s) => s.url || s.fn || s.invoker);
+					recentLongTasks.push({
+						duration: Math.round(entry.duration),
+						ts: Date.now(),
+						scripts,
+					});
+					if (recentLongTasks.length > 10) recentLongTasks.shift();
+				}
+			}).observe({ type: 'long-animation-frame', buffered: true });
+		} catch (e) {}
+	} else {
+		// Fallback: longtask API (no script attribution)
+		try {
+			new PerformanceObserver((list) => {
+				list.getEntries().forEach((entry) => {
+					longTasks++;
+					recentLongTasks.push({
+						duration: Math.round(entry.duration),
+						ts: Date.now(),
+						scripts: [],
+					});
+					if (recentLongTasks.length > 10) recentLongTasks.shift();
+				});
+			}).observe({ type: 'longtask', buffered: true });
+		} catch (e) {}
+	}
 
 	// FCP — First Contentful Paint
 	try {
@@ -84,7 +127,8 @@ if ('PerformanceObserver' in window) {
 	try {
 		new PerformanceObserver((list) => {
 			const entries = list.getEntries();
-			if (entries.length) lcp = Math.round(entries[entries.length - 1].startTime);
+			if (entries.length)
+				lcp = Math.round(entries[entries.length - 1].startTime);
 		}).observe({ type: 'largest-contentful-paint', buffered: true });
 	} catch (e) {}
 
@@ -92,7 +136,8 @@ if ('PerformanceObserver' in window) {
 	try {
 		new PerformanceObserver((list) => {
 			for (const entry of list.getEntries()) {
-				if (!entry.hadRecentInput) cls = parseFloat((cls + entry.value).toFixed(4));
+				if (!entry.hadRecentInput)
+					cls = parseFloat((cls + entry.value).toFixed(4));
 			}
 		}).observe({ type: 'layout-shift', buffered: true });
 	} catch (e) {}
@@ -104,7 +149,14 @@ if ('PerformanceObserver' in window) {
 				if (entry.interactionId > 0) {
 					inpDurations.push(entry.duration);
 					const sorted = [...inpDurations].sort((a, b) => a - b);
-					inp = Math.round(sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.98))]);
+					inp = Math.round(
+						sorted[
+							Math.min(
+								sorted.length - 1,
+								Math.floor(sorted.length * 0.98),
+							)
+						],
+					);
 				}
 			}
 		}).observe({ type: 'event', buffered: true, durationThreshold: 16 });
@@ -117,8 +169,8 @@ const overlay = document.createElement('div');
 overlay.id = '__perfmonitor_overlay__';
 overlay.innerHTML = `
   <div id="__pm_header__">
-    <span id="__pm_title__">⬛ Perf</span>
-    <button id="__pm_close__" title="Nascondi">✕</button>
+    <span id="__pm_title__">Performance</span>
+    <button id="__pm_close__" title="Hide">✕</button>
   </div>
   <div id="__pm_body__">
     <div class="__pm_row__">
@@ -190,7 +242,9 @@ document.documentElement.appendChild(overlay);
 // ── Drag ────────────────────────────────────────────────────────────────────
 
 const header = overlay.querySelector('#__pm_header__');
-let dragging = false, ox = 0, oy = 0;
+let dragging = false,
+	ox = 0,
+	oy = 0;
 
 header.addEventListener('mousedown', (e) => {
 	dragging = true;
@@ -201,10 +255,12 @@ header.addEventListener('mousedown', (e) => {
 document.addEventListener('mousemove', (e) => {
 	if (!dragging) return;
 	overlay.style.right = 'auto';
-	overlay.style.left = (e.clientX - ox) + 'px';
-	overlay.style.top  = (e.clientY - oy) + 'px';
+	overlay.style.left = e.clientX - ox + 'px';
+	overlay.style.top = e.clientY - oy + 'px';
 });
-document.addEventListener('mouseup', () => { dragging = false; });
+document.addEventListener('mouseup', () => {
+	dragging = false;
+});
 
 // ── Chiudi ───────────────────────────────────────────────────────────────────
 
@@ -231,16 +287,24 @@ chrome.storage.local.get('pm_overlay_visible', (res) => {
 
 function color(val, redAbove, orangeAbove, invert = false) {
 	if (!invert) {
-		return val > redAbove ? '#ef4444' : val > orangeAbove ? '#f59e0b' : '#22c55e';
+		return val > redAbove
+			? '#ef4444'
+			: val > orangeAbove
+				? '#f59e0b'
+				: '#22c55e';
 	} else {
-		return val < redAbove ? '#ef4444' : val < orangeAbove ? '#f59e0b' : '#22c55e';
+		return val < redAbove
+			? '#ef4444'
+			: val < orangeAbove
+				? '#f59e0b'
+				: '#22c55e';
 	}
 }
 
 function updateOverlay() {
 	const ramEl = overlay.querySelector('#__pm_ram__');
 	const fpsEl = overlay.querySelector('#__pm_fps__');
-	const ltEl  = overlay.querySelector('#__pm_lt__');
+	const ltEl = overlay.querySelector('#__pm_lt__');
 
 	ramEl.textContent = ramMB;
 	ramEl.style.color = color(ramMB, 400, 200);
@@ -248,8 +312,8 @@ function updateOverlay() {
 	fpsEl.textContent = fps;
 	fpsEl.style.color = color(fps, 30, 50, true);
 
-	ltEl.textContent  = longTasks;
-	ltEl.style.color  = longTasks > 10 ? '#ef4444' : '#e2e2e8';
+	ltEl.textContent = longTasks;
+	ltEl.style.color = longTasks > 10 ? '#ef4444' : '#e2e2e8';
 }
 
 // ── RAM + send + overlay ogni secondo ───────────────────────────────────────
@@ -258,16 +322,41 @@ setInterval(() => {
 	if (!isContextValid()) return;
 
 	if (performance.memory) {
-		ramMB = parseFloat((performance.memory.usedJSHeapSize / 1048576).toFixed(1));
-		ramTotalMB = parseFloat((performance.memory.totalJSHeapSize / 1048576).toFixed(1));
-		ramLimitMB = parseFloat((performance.memory.jsHeapSizeLimit / 1048576).toFixed(0));
+		ramMB = parseFloat(
+			(performance.memory.usedJSHeapSize / 1048576).toFixed(1),
+		);
+		ramTotalMB = parseFloat(
+			(performance.memory.totalJSHeapSize / 1048576).toFixed(1),
+		);
+		ramLimitMB = parseFloat(
+			(performance.memory.jsHeapSizeLimit / 1048576).toFixed(0),
+		);
 	}
 
 	chrome.runtime.sendMessage(
-		{ type: 'PERF_DATA', data: { fps, longTasks, recentLongTasks: [...recentLongTasks], ramMB, ramTotalMB, ramLimitMB, fcp, lcp, cls, inp, downlink, netRtt, effectiveType, url: location.href, ts: Date.now() } },
+		{
+			type: 'PERF_DATA',
+			data: {
+				fps,
+				longTasks,
+				recentLongTasks: [...recentLongTasks],
+				ramMB,
+				ramTotalMB,
+				ramLimitMB,
+				fcp,
+				lcp,
+				cls,
+				inp,
+				downlink,
+				netRtt,
+				effectiveType,
+				url: location.href,
+				ts: Date.now(),
+			},
+		},
 		() => {
 			void chrome.runtime.lastError;
 			updateOverlay();
-		}
+		},
 	);
 }, 1000);

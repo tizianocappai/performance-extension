@@ -72,59 +72,45 @@ async function render() {
 	const inpColor = !data.inp  ? '#555' : data.inp  >= 500   ? '#ef4444' : data.inp  >= 200   ? '#f59e0b' : '#22c55e';
 
 	document.getElementById('main-content').innerHTML = `
+
+    <!-- ── RAM ── -->
     <div class="card">
       <div class="card-label">JS Heap RAM</div>
       <div class="metric-row">
         <span class="metric-val" style="color:${ramColor}">${data.ramMB}</span>
         <span class="metric-unit">MB</span>
-        <span class="metric-unit">/ ${data.ramTotalMB} MB allocati</span>
+        <span class="metric-unit">/ ${data.ramTotalMB} MB allocated</span>
       </div>
-      <div class="metric-sub">Limite heap: ${data.ramLimitMB} MB</div>
+      <div class="metric-sub">Heap limit: ${data.ramLimitMB} MB</div>
       <div class="bar-wrap">
         <div class="bar-fill" style="width:${Math.min(ramPct, 100)}%;background:${ramColor}"></div>
       </div>
+      <canvas id="ram-chart" height="48"></canvas>
     </div>
 
     ${procMemMB !== null ? `
     <div class="card">
-      <div class="card-label">Memoria processo tab</div>
+      <div class="card-label">Tab process memory</div>
       <div class="metric-row">
         <span class="metric-val" style="color:${procMemMB > 400 ? '#ef4444' : procMemMB > 200 ? '#f59e0b' : '#22c55e'}">${procMemMB}</span>
-        <span class="metric-unit">MB (RAM privata del processo)</span>
+        <span class="metric-unit">MB (process private RAM)</span>
       </div>
     </div>` : ''}
 
+    ${sysMem ? `
     <div class="card">
-      <div class="card-label">FPS (frame rate)</div>
+      <div class="card-label">System RAM</div>
       <div class="metric-row">
-        <span class="metric-val" style="color:${fpsColor}">${data.fps}</span>
-        <span class="metric-unit">fps</span>
+        <span class="metric-val" style="color:${sysMem.availableMB < 512 ? '#ef4444' : sysMem.availableMB < 2048 ? '#f59e0b' : '#22c55e'}">${sysMem.availableMB}</span>
+        <span class="metric-unit">MB available</span>
       </div>
-      <canvas id="fps-chart" height="48"></canvas>
-    </div>
-
-    <div class="card">
-      <div class="card-label">Long Tasks (totale sessione)</div>
-      <div class="metric-row">
-        <span class="metric-val" style="color:${data.longTasks > 10 ? '#ef4444' : '#e2e2e8'}">${data.longTasks}</span>
-        <span class="metric-unit">task &gt;50ms</span>
+      <div class="metric-sub">Total: ${sysMem.totalMB} MB</div>
+      <div class="bar-wrap">
+        <div class="bar-fill" style="width:${Math.min(((sysMem.totalMB - sysMem.availableMB) / sysMem.totalMB) * 100, 100).toFixed(1)}%;background:${sysMem.availableMB < 512 ? '#ef4444' : sysMem.availableMB < 2048 ? '#f59e0b' : '#22c55e'}"></div>
       </div>
-      <div class="metric-sub">Main thread bloccato per oltre 50ms</div>
-      ${(data.recentLongTasks?.length > 0) ? `
-      <div style="margin-top:8px;display:flex;flex-direction:column;gap:3px;">
-        ${[...data.recentLongTasks].reverse().map(t => `
-          <div style="display:flex;justify-content:space-between;align-items:center;background:#252530;border-radius:5px;padding:3px 8px;">
-            <span style="font-size:10px;color:#555">${new Date(t.ts).toLocaleTimeString()}</span>
-            <span style="font-size:11px;font-weight:600;color:${t.duration > 200 ? '#ef4444' : t.duration > 100 ? '#f59e0b' : '#e2e2e8'}">${t.duration} ms</span>
-          </div>`).join('')}
-      </div>` : ''}
-    </div>
+    </div>` : ''}
 
-    <div class="card">
-      <div class="card-label">RAM — andamento (30s)</div>
-      <canvas id="ram-chart" height="48"></canvas>
-    </div>
-
+    <!-- ── CPU ── -->
     <div class="card">
       <div class="card-label">CPU Usage</div>
       <div class="metric-row">
@@ -137,29 +123,7 @@ async function render() {
       <canvas id="cpu-chart" height="48"></canvas>
     </div>
 
-    ${sysMem ? `
-    <div class="card">
-      <div class="card-label">RAM di sistema</div>
-      <div class="metric-row">
-        <span class="metric-val" style="color:${sysMem.availableMB < 512 ? '#ef4444' : sysMem.availableMB < 2048 ? '#f59e0b' : '#22c55e'}">${sysMem.availableMB}</span>
-        <span class="metric-unit">MB disponibili</span>
-      </div>
-      <div class="metric-sub">Totale: ${sysMem.totalMB} MB</div>
-      <div class="bar-wrap">
-        <div class="bar-fill" style="width:${Math.min(((sysMem.totalMB - sysMem.availableMB) / sysMem.totalMB) * 100, 100).toFixed(1)}%;background:${sysMem.availableMB < 512 ? '#ef4444' : sysMem.availableMB < 2048 ? '#f59e0b' : '#22c55e'}"></div>
-      </div>
-    </div>` : ''}
-
-    <div class="card">
-      <div class="card-label">Network</div>
-      <div class="metric-row">
-        <span class="metric-val" style="color:${downlinkColor}">${data.downlink || '—'}</span>
-        <span class="metric-unit">Mbps</span>
-        ${data.effectiveType ? `<span class="metric-unit" style="margin-left:6px;background:#1a1a2e;padding:1px 6px;border-radius:4px">${data.effectiveType}</span>` : ''}
-      </div>
-      ${data.netRtt ? `<div class="metric-sub">RTT stimato: ${data.netRtt} ms</div>` : ''}
-    </div>
-
+    <!-- ── Core Web Vitals ── -->
     <div class="card">
       <div class="card-label">Core Web Vitals</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
@@ -185,6 +149,52 @@ async function render() {
         </div>
       </div>
     </div>
+
+    <!-- ── FPS / Tasks / Network ── -->
+    <div class="card">
+      <div class="card-label">FPS (frame rate)</div>
+      <div class="metric-row">
+        <span class="metric-val" style="color:${fpsColor}">${data.fps}</span>
+        <span class="metric-unit">fps</span>
+      </div>
+      <canvas id="fps-chart" height="48"></canvas>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Long Tasks (session total)</div>
+      <div class="metric-row">
+        <span class="metric-val" style="color:${data.longTasks > 10 ? '#ef4444' : '#e2e2e8'}">${data.longTasks}</span>
+        <span class="metric-unit">task &gt;50ms</span>
+      </div>
+      <div class="metric-sub">Main thread blocked for over 50ms</div>
+      ${(data.recentLongTasks?.length > 0) ? `
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;">
+        ${[...data.recentLongTasks].reverse().map(t => {
+          const col = t.duration > 200 ? '#ef4444' : t.duration > 100 ? '#f59e0b' : '#e2e2e8';
+          const topScript = t.scripts?.[0];
+          const label = topScript
+            ? (topScript.fn ? `${topScript.fn}()` : '') + (topScript.url ? ` · ${topScript.url}` : '') + (topScript.invoker ? ` (${topScript.invoker})` : '')
+            : '';
+          return `<div style="background:#252530;border-radius:5px;padding:4px 8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:10px;color:#555">${new Date(t.ts).toLocaleTimeString()}</span>
+              <span style="font-size:11px;font-weight:600;color:${col}">${t.duration} ms</span>
+            </div>
+            ${label ? `<div style="font-size:10px;color:#6b6b80;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${label}</div>` : ''}
+          </div>`;
+        }).join('')}
+      </div>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="card-label">Network</div>
+      <div class="metric-row">
+        <span class="metric-val" style="color:${downlinkColor}">${data.downlink || '—'}</span>
+        <span class="metric-unit">Mbps</span>
+        ${data.effectiveType ? `<span class="metric-unit" style="margin-left:6px;background:#1a1a2e;padding:1px 6px;border-radius:4px">${data.effectiveType}</span>` : ''}
+      </div>
+      ${data.netRtt ? `<div class="metric-sub">Estimated RTT: ${data.netRtt} ms</div>` : ''}
+    </div>
   `;
 
 	drawChart('fps-chart', fpsHistory, fpsColor, 60);
@@ -193,7 +203,7 @@ async function render() {
 
 	const d = new Date(data.ts);
 	document.getElementById('last-update').textContent =
-		`Aggiornato: ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+		`Updated: ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
 }
 
 async function exportSnapshot() {
@@ -242,17 +252,27 @@ async function exportSnapshot() {
     </tr>`;
 	}).join('');
 
+	const hasScripts = (data.recentLongTasks ?? []).some(t => t.scripts?.length > 0);
 	const tasksRows = (data.recentLongTasks ?? []).length > 0
 		? [...data.recentLongTasks].reverse().map((t, i) => {
 			const sev = t.duration > 200 ? ['Critical', '#fef2f2', '#b91c1c'] : t.duration > 100 ? ['Warning', '#fffbeb', '#b45309'] : ['Normal', '#f0fdf4', '#15803d'];
+			const scriptLines = (t.scripts ?? []).map(s => {
+				const parts = [];
+				if (s.fn)      parts.push(`<strong>${s.fn}()</strong>`);
+				if (s.url)     parts.push(`<code style="font-size:11px;background:#f3f4f6;padding:1px 4px;border-radius:3px">${s.url}</code>`);
+				if (s.invoker) parts.push(`<em style="color:#6b7280">${s.invoker}</em>`);
+				if (s.duration && s.duration !== t.duration) parts.push(`${s.duration} ms`);
+				return parts.join(' ');
+			}).filter(Boolean).join('<br/>');
 			return `<tr>
         <td>${i + 1}</td>
         <td>${new Date(t.ts).toLocaleTimeString()}</td>
         <td><strong>${t.duration} ms</strong></td>
         <td><span style="background:${sev[1]};color:${sev[2]};padding:1px 8px;border-radius:99px;font-size:11px;font-weight:600">${sev[0]}</span></td>
+        ${hasScripts ? `<td style="font-size:12px;line-height:1.6">${scriptLines || '<span style="color:#9ca3af">—</span>'}</td>` : ''}
       </tr>`;
 		}).join('')
-		: `<tr><td colspan="4" style="text-align:center;color:#6b7280">No long tasks recorded during this session</td></tr>`;
+		: `<tr><td colspan="${hasScripts ? 5 : 4}" style="text-align:center;color:#6b7280">No long tasks recorded during this session</td></tr>`;
 
 	const badge = (label, status, color) =>
 		`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
@@ -474,12 +494,22 @@ async function exportSnapshot() {
   <!-- Long Tasks -->
   <section>
     <h2>Long Tasks Detail</h2>
-    <p style="font-size:13px;color:#6b7280;margin-bottom:16px">
+    <p style="font-size:13px;color:#6b7280;margin-bottom:12px">
       A long task is any main-thread operation exceeding 50 ms that blocks user interaction.
-      ${data.longTasks > 0 ? `<strong style="color:#111827">${data.longTasks} total tasks</strong> were recorded during this session.` : 'No long tasks were recorded during this session.'}
+      ${data.longTasks > 0 ? `<strong style="color:#111827">${data.longTasks} total tasks</strong> were recorded during this session (showing last ${(data.recentLongTasks ?? []).length}).` : 'No long tasks were recorded during this session.'}
     </p>
+    ${hasScripts ? `
+    <p style="font-size:12px;color:#6b7280;margin-bottom:16px;padding:8px 12px;background:#f0fdf4;border-left:3px solid #22c55e;border-radius:0 6px 6px 0">
+      Script attribution available via <strong style="color:#111827">Long Animation Frames API</strong>.
+      Columns: <strong style="color:#111827">function name</strong> — the JS function that ran;
+      <strong style="color:#111827">file</strong> — the script file;
+      <strong style="color:#111827">invoker</strong> — what triggered it (e.g. <code style="font-size:11px;background:#e0f2fe;padding:1px 4px;border-radius:3px">BUTTON#save.onclick</code>, <code style="font-size:11px;background:#e0f2fe;padding:1px 4px;border-radius:3px">setTimeout</code>).
+    </p>` : `
+    <p style="font-size:12px;color:#6b7280;margin-bottom:16px;padding:8px 12px;background:#fffbeb;border-left:3px solid #f59e0b;border-radius:0 6px 6px 0">
+      Script attribution not available — requires Chrome 123+ (Long Animation Frames API).
+    </p>`}
     <table class="stats-table">
-      <thead><tr><th>#</th><th>Time</th><th>Duration</th><th>Severity</th></tr></thead>
+      <thead><tr><th>#</th><th>Time</th><th>Duration</th><th>Severity</th>${hasScripts ? '<th>Script attribution</th>' : ''}</tr></thead>
       <tbody>${tasksRows}</tbody>
     </table>
   </section>

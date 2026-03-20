@@ -3,7 +3,7 @@
 	"name": "PerfMonitor",
 	"version": "1.0",
 	"description": "Monitora RAM, FPS e Long Tasks della pagina corrente",
-	"permissions": ["tabs", "storage", "notifications", "scripting"],
+	"permissions": ["tabs", "storage", "notifications", "scripting", "system.cpu"],
 	"host_permissions": ["<all_urls>"],
 	"background": {
 		"service_worker": "background.js"

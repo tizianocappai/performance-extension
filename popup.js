@@ -2,6 +2,7 @@
 const HISTORY_LEN = 30;
 const fpsHistory = new Array(HISTORY_LEN).fill(0);
 const ramHistory = new Array(HISTORY_LEN).fill(0);
+const cpuHistory = new Array(HISTORY_LEN).fill(0);
 
 let canvas, ctx, tabId;
 
@@ -16,14 +17,16 @@ chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
 document.getElementById('reset-btn').addEventListener('click', () => {
 	fpsHistory.fill(0);
 	ramHistory.fill(0);
+	cpuHistory.fill(0);
 	if (tabId) chrome.storage.session.remove(`tab_${tabId}`);
 });
 
 async function render() {
 	if (!tabId) return;
 
-	const result = await chrome.storage.session.get(`tab_${tabId}`);
+	const result = await chrome.storage.session.get([`tab_${tabId}`, 'cpu_usage']);
 	const data = result[`tab_${tabId}`];
+	const cpuPct = result['cpu_usage'] ?? 0;
 
 	if (!data) return;
 
@@ -40,6 +43,8 @@ async function render() {
 	fpsHistory.shift();
 	ramHistory.push(data.ramMB || 0);
 	ramHistory.shift();
+	cpuHistory.push(cpuPct);
+	cpuHistory.shift();
 
 	// Costruisci HTML
 	const ramPct = data.ramLimitMB
@@ -49,6 +54,8 @@ async function render() {
 		data.ramMB > 400 ? '#ef4444' : data.ramMB > 200 ? '#f59e0b' : '#22c55e';
 	const fpsColor =
 		data.fps < 30 ? '#ef4444' : data.fps < 50 ? '#f59e0b' : '#22c55e';
+	const cpuColor =
+		cpuPct > 80 ? '#ef4444' : cpuPct > 50 ? '#f59e0b' : '#22c55e';
 
 	document.getElementById('main-content').innerHTML = `
     <div class="card">
@@ -86,10 +93,23 @@ async function render() {
       <div class="card-label">RAM — andamento (30s)</div>
       <canvas id="ram-chart" height="48"></canvas>
     </div>
+
+    <div class="card">
+      <div class="card-label">CPU Usage</div>
+      <div class="metric-row">
+        <span class="metric-val" style="color:${cpuColor}">${cpuPct}</span>
+        <span class="metric-unit">%</span>
+      </div>
+      <div class="bar-wrap">
+        <div class="bar-fill" style="width:${cpuPct}%;background:${cpuColor}"></div>
+      </div>
+      <canvas id="cpu-chart" height="48"></canvas>
+    </div>
   `;
 
 	drawChart('fps-chart', fpsHistory, fpsColor, 60);
 	drawChart('ram-chart', ramHistory, ramColor, Math.max(...ramHistory, 100));
+	drawChart('cpu-chart', cpuHistory, cpuColor, 100);
 
 	const d = new Date(data.ts);
 	document.getElementById('last-update').textContent =

@@ -138,79 +138,233 @@ async function exportSnapshot() {
 	const tsStr = ts.toLocaleString();
 	const fileName = `perfmonitor-${ts.toISOString().replace(/[:.]/g, '-')}.html`;
 
-	const fpsImg  = document.getElementById('fps-chart')?.toDataURL() ?? '';
-	const ramImg  = document.getElementById('ram-chart')?.toDataURL() ?? '';
-	const cpuImg  = document.getElementById('cpu-chart')?.toDataURL() ?? '';
+	const fpsImg = document.getElementById('fps-chart')?.toDataURL() ?? '';
+	const ramImg = document.getElementById('ram-chart')?.toDataURL() ?? '';
+	const cpuImg = document.getElementById('cpu-chart')?.toDataURL() ?? '';
 
-	const ramColor = data.ramMB > 400 ? '#ef4444' : data.ramMB > 200 ? '#f59e0b' : '#22c55e';
-	const fpsColor = data.fps < 30 ? '#ef4444' : data.fps < 50 ? '#f59e0b' : '#22c55e';
-	const cpuColor = cpuPct > 80 ? '#ef4444' : cpuPct > 50 ? '#f59e0b' : '#22c55e';
-	const ramPct   = data.ramLimitMB ? Math.min((data.ramMB / data.ramLimitMB) * 100, 100).toFixed(1) : 0;
+	const ramPct    = data.ramLimitMB ? Math.min((data.ramMB / data.ramLimitMB) * 100, 100).toFixed(1) : 0;
+	const ramStatus = data.ramMB > 400 ? ['Critical', '#b91c1c'] : data.ramMB > 200 ? ['Warning', '#b45309'] : ['Good', '#15803d'];
+	const fpsStatus = data.fps < 30   ? ['Critical', '#b91c1c'] : data.fps < 50   ? ['Warning', '#b45309'] : ['Good', '#15803d'];
+	const cpuStatus = cpuPct > 80     ? ['Critical', '#b91c1c'] : cpuPct > 50     ? ['Warning', '#b45309'] : ['Good', '#15803d'];
+	const ltStatus  = data.longTasks > 10 ? ['High', '#b91c1c'] : data.longTasks > 0 ? ['Present', '#b45309'] : ['None', '#15803d'];
 
-	const tasksRows = (data.recentLongTasks ?? []).reverse().map(t => {
-		const c = t.duration > 200 ? '#ef4444' : t.duration > 100 ? '#f59e0b' : '#e2e2e8';
-		return `<tr><td>${new Date(t.ts).toLocaleTimeString()}</td><td style="color:${c};font-weight:600">${t.duration} ms</td></tr>`;
+	const avgFps = fpsHistory.filter(v => v > 0);
+	const avgRam = ramHistory.filter(v => v > 0);
+	const avgCpu = cpuHistory.filter(v => v > 0);
+	const avg = arr => arr.length ? (arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1) : '—';
+	const min = arr => arr.length ? Math.min(...arr).toFixed(1) : '—';
+	const max = arr => arr.length ? Math.max(...arr).toFixed(1) : '—';
+
+	const historyRows = Array.from({ length: HISTORY_LEN }, (_, i) => {
+		const label = `${HISTORY_LEN - i}s ago`;
+		return `<tr>
+      <td>${label}</td>
+      <td>${ramHistory[i] || '—'}</td>
+      <td>${fpsHistory[i] || '—'}</td>
+      <td>${cpuHistory[i] || '—'}</td>
+    </tr>`;
 	}).join('');
+
+	const tasksRows = (data.recentLongTasks ?? []).length > 0
+		? [...data.recentLongTasks].reverse().map((t, i) => {
+			const sev = t.duration > 200 ? ['Critical', '#fef2f2', '#b91c1c'] : t.duration > 100 ? ['Warning', '#fffbeb', '#b45309'] : ['Normal', '#f0fdf4', '#15803d'];
+			return `<tr>
+        <td>${i + 1}</td>
+        <td>${new Date(t.ts).toLocaleTimeString()}</td>
+        <td><strong>${t.duration} ms</strong></td>
+        <td><span style="background:${sev[1]};color:${sev[2]};padding:1px 8px;border-radius:99px;font-size:11px;font-weight:600">${sev[0]}</span></td>
+      </tr>`;
+		}).join('')
+		: `<tr><td colspan="4" style="text-align:center;color:#6b7280">No long tasks recorded during this session</td></tr>`;
+
+	const badge = (label, status, color) =>
+		`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px">
+      <span style="font-size:13px;color:#374151;font-weight:500">${label}</span>
+      <span style="font-size:12px;font-weight:700;color:${color};background:${color}18;padding:2px 10px;border-radius:99px">${status}</span>
+    </div>`;
 
 	const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8"/>
-  <title>PerfMonitor Snapshot — ${tsStr}</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Performance Report — ${new URL(data.url).hostname}</title>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{background:#0f0f11;color:#e2e2e8;font-family:system-ui,sans-serif;font-size:13px;padding:32px;max-width:600px;margin:0 auto}
-    h1{font-size:18px;font-weight:700;margin-bottom:4px}
-    .meta{font-size:11px;color:#44445a;margin-bottom:24px}
-    .card{background:#1a1a1f;border:1px solid #2a2a35;border-radius:10px;padding:14px 16px;margin-bottom:12px}
-    .label{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:#6b6b80;margin-bottom:6px}
-    .val{font-size:28px;font-weight:700;line-height:1}
-    .unit{font-size:13px;color:#888;margin-left:4px}
-    .sub{font-size:11px;color:#555;margin-top:3px}
-    .bar-wrap{background:#252530;border-radius:4px;height:6px;margin-top:8px;overflow:hidden}
-    .bar-fill{height:100%;border-radius:4px}
-    img{display:block;width:100%;margin-top:8px;border-radius:4px}
-    table{width:100%;border-collapse:collapse;margin-top:10px}
-    td{padding:4px 8px;font-size:11px;background:#252530;border-bottom:1px solid #1a1a1f}
-    td:last-child{text-align:right}
-    .footer{margin-top:24px;font-size:10px;color:#333;text-align:center}
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; font-size: 14px; color: #111827; background: #fff; line-height: 1.6; }
+    .page { max-width: 860px; margin: 0 auto; padding: 48px 40px; }
+
+    /* Header */
+    .report-header { border-bottom: 2px solid #111827; padding-bottom: 24px; margin-bottom: 36px; }
+    .report-title { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
+    .report-subtitle { font-size: 13px; color: #6b7280; }
+    .report-subtitle a { color: #2563eb; text-decoration: none; }
+    .report-meta { display: flex; gap: 32px; margin-top: 16px; flex-wrap: wrap; }
+    .report-meta-item { font-size: 12px; color: #6b7280; }
+    .report-meta-item strong { color: #111827; display: block; font-size: 13px; }
+
+    /* Sections */
+    h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; color: #111827; }
+    section { margin-bottom: 40px; }
+
+    /* Summary grid */
+    .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+
+    /* Metric blocks */
+    .metrics-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+    .metric-block { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 14px 16px; }
+    .metric-block .label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: 4px; }
+    .metric-block .value { font-size: 28px; font-weight: 800; line-height: 1; }
+    .metric-block .unit { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+    /* Stats table */
+    .stats-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px; }
+    .stats-table th { text-align: left; padding: 8px 12px; background: #f3f4f6; font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; border-bottom: 1px solid #e5e7eb; }
+    .stats-table td { padding: 8px 12px; border-bottom: 1px solid #f3f4f6; }
+    .stats-table tr:last-child td { border-bottom: none; }
+    .stats-table tr:hover td { background: #f9fafb; }
+
+    /* Progress bar */
+    .bar-track { background: #e5e7eb; border-radius: 99px; height: 8px; margin-top: 8px; }
+    .bar-fill { height: 100%; border-radius: 99px; }
+
+    /* Charts */
+    .chart-wrap { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+    .chart-wrap .chart-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #9ca3af; margin-bottom: 8px; }
+    .chart-wrap img { display: block; width: 100%; border-radius: 4px; }
+
+    /* Footer */
+    .report-footer { border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 40px; display: flex; justify-content: space-between; font-size: 11px; color: #9ca3af; }
+
+    @media print {
+      body { font-size: 12px; }
+      .page { padding: 24px; }
+      section { page-break-inside: avoid; }
+    }
   </style>
 </head>
 <body>
-  <h1>PerfMonitor — Snapshot</h1>
-  <div class="meta">${tsStr} &nbsp;·&nbsp; ${data.url}</div>
+<div class="page">
 
-  <div class="card">
-    <div class="label">JS Heap RAM</div>
-    <div><span class="val" style="color:${ramColor}">${data.ramMB}</span><span class="unit">MB / ${data.ramTotalMB} MB allocati</span></div>
-    <div class="sub">Limite heap: ${data.ramLimitMB} MB</div>
-    <div class="bar-wrap"><div class="bar-fill" style="width:${ramPct}%;background:${ramColor}"></div></div>
+  <!-- Header -->
+  <div class="report-header">
+    <div class="report-title">Performance Report</div>
+    <div class="report-subtitle">
+      <a href="${data.url}" target="_blank">${data.url}</a>
+    </div>
+    <div class="report-meta">
+      <div class="report-meta-item"><strong>${tsStr}</strong>Recorded at</div>
+      <div class="report-meta-item"><strong>${new URL(data.url).hostname}</strong>Page</div>
+      <div class="report-meta-item"><strong>${HISTORY_LEN}s</strong>History window</div>
+      <div class="report-meta-item"><strong>${data.longTasks}</strong>Total long tasks</div>
+    </div>
   </div>
 
-  <div class="card">
-    <div class="label">FPS</div>
-    <div><span class="val" style="color:${fpsColor}">${data.fps}</span><span class="unit">fps</span></div>
-    ${fpsImg ? `<img src="${fpsImg}" alt="FPS chart"/>` : ''}
+  <!-- Summary -->
+  <section>
+    <h2>Summary</h2>
+    <div class="summary-grid">
+      ${badge('JS Heap RAM', `${ramStatus[0]} — ${data.ramMB} MB`, ramStatus[1])}
+      ${badge('Frame Rate', `${fpsStatus[0]} — ${data.fps} fps`, fpsStatus[1])}
+      ${badge('CPU Usage', `${cpuStatus[0]} — ${cpuPct}%`, cpuStatus[1])}
+      ${badge('Long Tasks', `${ltStatus[0]} — ${data.longTasks} task${data.longTasks !== 1 ? 's' : ''}`, ltStatus[1])}
+    </div>
+  </section>
+
+  <!-- Snapshot -->
+  <section>
+    <h2>Snapshot at ${tsStr}</h2>
+    <div class="metrics-grid">
+      <div class="metric-block">
+        <div class="label">JS Heap RAM</div>
+        <div class="value" style="color:${ramStatus[1]}">${data.ramMB}</div>
+        <div class="unit">MB used</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${ramPct}%;background:${ramStatus[1]}"></div></div>
+      </div>
+      <div class="metric-block">
+        <div class="label">Frame Rate</div>
+        <div class="value" style="color:${fpsStatus[1]}">${data.fps}</div>
+        <div class="unit">fps</div>
+      </div>
+      <div class="metric-block">
+        <div class="label">CPU Usage</div>
+        <div class="value" style="color:${cpuStatus[1]}">${cpuPct}</div>
+        <div class="unit">%</div>
+      </div>
+      <div class="metric-block">
+        <div class="label">Long Tasks</div>
+        <div class="value" style="color:${ltStatus[1]}">${data.longTasks}</div>
+        <div class="unit">total &gt;50 ms</div>
+      </div>
+    </div>
+
+    <table class="stats-table">
+      <thead><tr><th>Metric</th><th>Current</th><th>Avg (30s)</th><th>Min</th><th>Max</th><th>Details</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>JS Heap RAM</strong></td>
+          <td>${data.ramMB} MB</td>
+          <td>${avg(avgRam)} MB</td>
+          <td>${min(avgRam)} MB</td>
+          <td>${max(avgRam)} MB</td>
+          <td>${data.ramTotalMB} MB allocated · ${data.ramLimitMB} MB limit</td>
+        </tr>
+        <tr>
+          <td><strong>Frame Rate</strong></td>
+          <td>${data.fps} fps</td>
+          <td>${avg(avgFps)} fps</td>
+          <td>${min(avgFps)} fps</td>
+          <td>${max(avgFps)} fps</td>
+          <td>Target: 60 fps</td>
+        </tr>
+        <tr>
+          <td><strong>CPU Usage</strong></td>
+          <td>${cpuPct}%</td>
+          <td>${avg(avgCpu)}%</td>
+          <td>${min(avgCpu)}%</td>
+          <td>${max(avgCpu)}%</td>
+          <td>System-wide average</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Charts -->
+  <section>
+    <h2>30-second History Charts</h2>
+    ${fpsImg ? `<div class="chart-wrap"><div class="chart-label">Frame Rate (fps)</div><img src="${fpsImg}"/></div>` : ''}
+    ${ramImg ? `<div class="chart-wrap"><div class="chart-label">JS Heap RAM (MB)</div><img src="${ramImg}"/></div>` : ''}
+    ${cpuImg ? `<div class="chart-wrap"><div class="chart-label">CPU Usage (%)</div><img src="${cpuImg}"/></div>` : ''}
+  </section>
+
+  <!-- Long Tasks -->
+  <section>
+    <h2>Long Tasks Detail</h2>
+    <p style="font-size:13px;color:#6b7280;margin-bottom:16px">
+      A long task is any main-thread operation exceeding 50 ms that blocks user interaction.
+      ${data.longTasks > 0 ? `<strong style="color:#111827">${data.longTasks} total tasks</strong> were recorded during this session.` : 'No long tasks were recorded during this session.'}
+    </p>
+    <table class="stats-table">
+      <thead><tr><th>#</th><th>Time</th><th>Duration</th><th>Severity</th></tr></thead>
+      <tbody>${tasksRows}</tbody>
+    </table>
+  </section>
+
+  <!-- Raw history -->
+  <section>
+    <h2>Raw History Data (last ${HISTORY_LEN} seconds)</h2>
+    <table class="stats-table">
+      <thead><tr><th>Time</th><th>RAM (MB)</th><th>FPS</th><th>CPU (%)</th></tr></thead>
+      <tbody>${historyRows}</tbody>
+    </table>
+  </section>
+
+  <div class="report-footer">
+    <span>Generated by PerfMonitor</span>
+    <span>${tsStr}</span>
   </div>
 
-  <div class="card">
-    <div class="label">CPU Usage</div>
-    <div><span class="val" style="color:${cpuColor}">${cpuPct}</span><span class="unit">%</span></div>
-    <div class="bar-wrap"><div class="bar-fill" style="width:${Math.min(cpuPct,100)}%;background:${cpuColor}"></div></div>
-    ${cpuImg ? `<img src="${cpuImg}" alt="CPU chart"/>` : ''}
-  </div>
-
-  <div class="card">
-    <div class="label">Long Tasks — totale sessione: ${data.longTasks}</div>
-    ${tasksRows ? `<table>${tasksRows}</table>` : '<div class="sub" style="margin-top:6px">Nessun long task registrato</div>'}
-  </div>
-
-  <div class="card">
-    <div class="label">RAM — andamento (30s)</div>
-    ${ramImg ? `<img src="${ramImg}" alt="RAM chart"/>` : ''}
-  </div>
-
-  <div class="footer">Generated by PerfMonitor</div>
+</div>
 </body>
 </html>`;
 

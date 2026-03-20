@@ -1,13 +1,16 @@
 # PerfMonitor
 
-A lightweight Chrome extension (Manifest V3) that displays real-time performance metrics for the active tab — JS heap RAM, frame rate, and long tasks — without any build tools or dependencies.
+A lightweight Chrome extension (Manifest V3) that displays real-time performance metrics for the active tab — JS heap RAM, frame rate, CPU usage, and long tasks — without any build tools or dependencies.
 
 ## Features
 
 - **JS Heap RAM** — used/allocated/limit with a fill bar and color-coded alert (green < 200 MB, orange > 200 MB, red > 400 MB)
 - **FPS** — live frame rate from `requestAnimationFrame`, color-coded (green ≥ 50, orange < 50, red < 30)
-- **Long Tasks** — cumulative count of main-thread blocks exceeding 50 ms since the tab was opened
-- **30-second history charts** — canvas-drawn area+line graphs for both FPS and RAM
+- **CPU Usage** — system-wide percentage sampled every second via `chrome.system.cpu`, color-coded (green ≤ 50%, orange ≤ 80%, red > 80%)
+- **Long Tasks** — count and detail log (duration + timestamp) of every main-thread block exceeding 50 ms
+- **30-second history charts** — canvas-drawn area+line graphs for FPS, RAM, and CPU
+- **Always-visible overlay** — draggable widget injected into every page so metrics stay visible while you interact with the site
+- **Export snapshot** — downloads a self-contained HTML performance report with charts, stats table (avg/min/max), long task log, and 30-second raw history
 - **RAM alert notification** — fires a browser notification when JS heap exceeds 500 MB (configurable)
 
 ## Installation
@@ -44,9 +47,9 @@ content.js ──(chrome.runtime.sendMessage every 1s)──► background.js
 
 | File | Role |
 |---|---|
-| `content.js` | Injected into every page. Collects FPS via `requestAnimationFrame`, long tasks via `PerformanceObserver`, and heap memory via `performance.memory`. Sends a `PERF_DATA` message each second. |
-| `background.js` | Service worker. Stores the latest snapshot per tab in `chrome.storage.session`. Fires a notification if RAM exceeds the threshold; resets the alert with a 50 MB hysteresis. Cleans up on tab close. |
-| `popup.js` | Polls session storage for the active tab, maintains 30-point rolling histories, renders metric cards, progress bar, and two canvas charts. |
+| `content.js` | Injected into every page. Collects FPS via `requestAnimationFrame`, long tasks via `PerformanceObserver`, and heap memory via `performance.memory`. Sends a `PERF_DATA` message each second. Also renders the always-visible draggable overlay widget directly in the page DOM. |
+| `background.js` | Service worker. Receives `PERF_DATA`, reads CPU usage via `chrome.system.cpu`, stores the merged snapshot per tab in `chrome.storage.session`. Fires a notification if RAM exceeds the threshold; resets the alert with a 50 MB hysteresis. Cleans up on tab close. |
+| `popup.js` | Polls session storage for the active tab, maintains 30-point rolling histories for RAM, FPS, and CPU, renders metric cards and three canvas charts. Handles export snapshot and sends `PM_SHOW_OVERLAY` to the content script on open. |
 
 ## Configuration
 
@@ -61,10 +64,12 @@ Both thresholds live in a single constant each:
 
 | Permission | Why |
 |---|---|
-| `tabs` | Read the active tab's ID to key session storage entries |
-| `storage` | `chrome.storage.session` for per-tab snapshots |
+| `activeTab` | Access the currently active tab to display its hostname |
+| `tabs` | Listen for tab close events to clean up session data |
+| `storage` | `chrome.storage.session` for per-tab snapshots; `chrome.storage.local` for overlay visibility preference |
 | `notifications` | RAM threshold alert |
-| `scripting` | Reserved for future programmatic injection |
+| `scripting` | Inject the content script to collect metrics and render the overlay widget |
+| `system.cpu` | Read system CPU usage to display in popup, overlay, and exported reports |
 | `<all_urls>` | Content script must run on every page |
 
 ## Browser Compatibility

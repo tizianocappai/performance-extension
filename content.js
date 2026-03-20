@@ -35,9 +35,9 @@ if ('PerformanceObserver' in window) {
 // RAM + dati -> background ogni secondo
 setInterval(() => {
 	if (performance.memory) {
-		ramMB = (performance.memory.usedJSHeapSize / 1048576).toFixed(1);
-		ramTotalMB = (performance.memory.totalJSHeapSize / 1048576).toFixed(1);
-		ramLimitMB = (performance.memory.jsHeapSizeLimit / 1048576).toFixed(0);
+		ramMB = parseFloat((performance.memory.usedJSHeapSize / 1048576).toFixed(1));
+		ramTotalMB = parseFloat((performance.memory.totalJSHeapSize / 1048576).toFixed(1));
+		ramLimitMB = parseFloat((performance.memory.jsHeapSizeLimit / 1048576).toFixed(0));
 	}
 
 	chrome.runtime
@@ -46,9 +46,9 @@ setInterval(() => {
 			data: {
 				fps,
 				longTasks,
-				ramMB: parseFloat(ramMB),
-				ramTotalMB: parseFloat(ramTotalMB),
-				ramLimitMB: parseFloat(ramLimitMB),
+				ramMB,
+				ramTotalMB,
+				ramLimitMB,
 				url: location.href,
 				ts: Date.now(),
 			},

@@ -4,6 +4,11 @@
 const RAM_ALERT_MB = 500; // soglia notifica RAM (modifica a piacere)
 let notifiedTab = new Set();
 
+// Ripristina notifiedTab dalla session storage al riavvio del service worker
+chrome.storage.session.get('notifiedTab', (res) => {
+	if (res.notifiedTab) notifiedTab = new Set(res.notifiedTab);
+});
+
 // CPU usage tracking
 let prevCpuInfo = null;
 
@@ -41,6 +46,7 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 	// Notifica se RAM supera soglia
 	if (data.ramMB > RAM_ALERT_MB && !notifiedTab.has(tabId)) {
 		notifiedTab.add(tabId);
+		chrome.storage.session.set({ notifiedTab: [...notifiedTab] });
 		chrome.notifications.create(`ram_${tabId}`, {
 			type: 'basic',
 			iconUrl: 'icons/icon48.png',
@@ -49,11 +55,15 @@ chrome.runtime.onMessage.addListener((msg, sender) => {
 		});
 	}
 	// Reset notifica se RAM torna sotto soglia
-	if (data.ramMB < RAM_ALERT_MB - 50) notifiedTab.delete(tabId);
+	if (data.ramMB < RAM_ALERT_MB - 50 && notifiedTab.has(tabId)) {
+		notifiedTab.delete(tabId);
+		chrome.storage.session.set({ notifiedTab: [...notifiedTab] });
+	}
 });
 
 // Pulisce i dati quando una tab viene chiusa
 chrome.tabs.onRemoved.addListener((tabId) => {
 	chrome.storage.session.remove(`tab_${tabId}`);
 	notifiedTab.delete(tabId);
+	chrome.storage.session.set({ notifiedTab: [...notifiedTab] });
 });

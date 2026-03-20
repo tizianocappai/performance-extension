@@ -4,7 +4,7 @@ const fpsHistory = new Array(HISTORY_LEN).fill(0);
 const ramHistory = new Array(HISTORY_LEN).fill(0);
 const cpuHistory = new Array(HISTORY_LEN).fill(0);
 
-let canvas, ctx, tabId;
+let tabId;
 
 // Ottieni la tab attiva e avvia il polling
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -67,7 +67,7 @@ async function render() {
       </div>
       <div class="metric-sub">Limite heap: ${data.ramLimitMB} MB</div>
       <div class="bar-wrap">
-        <div class="bar-fill" style="width:${ramPct}%;background:${ramColor}"></div>
+        <div class="bar-fill" style="width:${Math.min(ramPct, 100)}%;background:${ramColor}"></div>
       </div>
     </div>
 
@@ -101,7 +101,7 @@ async function render() {
         <span class="metric-unit">%</span>
       </div>
       <div class="bar-wrap">
-        <div class="bar-fill" style="width:${cpuPct}%;background:${cpuColor}"></div>
+        <div class="bar-fill" style="width:${Math.min(cpuPct, 100)}%;background:${cpuColor}"></div>
       </div>
       <canvas id="cpu-chart" height="48"></canvas>
     </div>

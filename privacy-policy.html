@@ -8,7 +8,7 @@
     body { font-family: system-ui, sans-serif; max-width: 720px; margin: 48px auto; padding: 0 24px; line-height: 1.6; color: #222; }
     h1 { font-size: 1.6rem; }
     h2 { font-size: 1.1rem; margin-top: 2rem; }
-    table { border-collapse: collapse; width: 100%; }
+    table { border-collapse: collapse; width: 100%; margin-top: 8px; }
     th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
     th { background: #f5f5f5; }
     code { background: #f0f0f0; padding: 2px 5px; border-radius: 3px; font-size: 0.9em; }
@@ -24,17 +24,30 @@
   <ul>
     <li><strong>JS Heap memory</strong> (used, allocated, and limit) via the <code>performance.memory</code> API</li>
     <li><strong>Frame rate (FPS)</strong> via <code>requestAnimationFrame</code></li>
-    <li><strong>Long Tasks count</strong> (main-thread blocks &gt; 50 ms) via <code>PerformanceObserver</code></li>
+    <li><strong>Long Tasks</strong> (count, duration in ms, and timestamp of each block &gt; 50 ms) via <code>PerformanceObserver</code></li>
     <li><strong>CPU usage</strong> (system-wide percentage) via the <code>chrome.system.cpu</code> API</li>
-    <li><strong>Page URL</strong> (used solely to display the hostname in the popup)</li>
+    <li><strong>Page URL</strong> (used solely to display the hostname in the popup and in exported snapshots)</li>
   </ul>
 
   <h2>How data is stored and used</h2>
-  <p>All data is stored exclusively in <strong><code>chrome.storage.session</code></strong> — a temporary, in-memory store local to your browser that is automatically cleared when the browser is closed. No data is written to disk beyond the browser session.</p>
-  <p>Data is used only to render the metrics displayed in the extension popup. It is never transmitted to any external server, never shared with third parties, and never used for advertising or analytics.</p>
+  <table>
+    <thead><tr><th>Storage</th><th>What is stored</th><th>Persistence</th></tr></thead>
+    <tbody>
+      <tr><td><code>chrome.storage.session</code></td><td>Per-tab performance snapshots, CPU usage, RAM alert state</td><td>Cleared when the browser closes</td></tr>
+      <tr><td><code>chrome.storage.local</code></td><td>Overlay visibility preference (<code>true</code>/<code>false</code>)</td><td>Persists across browser sessions</td></tr>
+    </tbody>
+  </table>
+  <p style="margin-top:12px">No data is ever transmitted to any external server, shared with third parties, or used for advertising or analytics.</p>
+
+  <h2>Export snapshot</h2>
+  <p>The "Export snapshot" feature generates an HTML file containing the current metrics and chart images and saves it <strong>locally on the user's device</strong>. No data is uploaded or shared. The exported file is created entirely in-browser and is under the user's full control.</p>
 
   <h2>Data retention</h2>
-  <p>Session data for a tab is deleted immediately when that tab is closed. Clicking "Reset contatori" in the popup clears all in-memory history instantly.</p>
+  <ul>
+    <li>Session data for a tab is deleted immediately when that tab is closed.</li>
+    <li>The overlay visibility preference stored in <code>chrome.storage.local</code> is a single boolean value with no personal information. It can be cleared at any time by removing the extension.</li>
+    <li>Clicking "Reset" in the popup clears all in-memory history and the session snapshot for the active tab.</li>
+  </ul>
 
   <h2>Permissions justification</h2>
   <table>
@@ -42,10 +55,10 @@
     <tbody>
       <tr><td><code>activeTab</code></td><td>Access the currently active tab to display its hostname</td></tr>
       <tr><td><code>tabs</code></td><td>Listen for tab close events to clean up session data</td></tr>
-      <tr><td><code>storage</code></td><td>Store performance snapshots in <code>chrome.storage.session</code></td></tr>
+      <tr><td><code>storage</code></td><td>Store performance snapshots in session storage and the overlay preference in local storage</td></tr>
       <tr><td><code>notifications</code></td><td>Alert the user when JS heap RAM exceeds the configured threshold</td></tr>
-      <tr><td><code>scripting</code></td><td>Inject the content script into pages to collect metrics</td></tr>
-      <tr><td><code>system.cpu</code></td><td>Read system CPU usage to display in the popup</td></tr>
+      <tr><td><code>scripting</code></td><td>Inject the content script into pages to collect metrics and render the overlay widget</td></tr>
+      <tr><td><code>system.cpu</code></td><td>Read system CPU usage to display in the popup and overlay</td></tr>
       <tr><td><code>&lt;all_urls&gt;</code></td><td>Allow the content script to run on every page</td></tr>
     </tbody>
   </table>
@@ -55,8 +68,8 @@
 
   <h2>GDPR (EU users)</h2>
   <p><strong>Data controller:</strong> Tiziano Cappai — contact via <a href="https://github.com/tizianocappai/performance-extension/issues">GitHub Issues</a>.</p>
-  <p><strong>Legal basis for processing:</strong> Legitimate interest (Article 6(1)(f) GDPR) — the extension processes only local, session-scoped technical metrics strictly necessary to provide the service the user has installed.</p>
-  <p><strong>Your rights:</strong> Under the GDPR you have the right to access, rectification, erasure, restriction of processing, and data portability. Since PerfMonitor stores no data outside your own device and all data is cleared automatically at session end, these rights are fulfilled by design. For any inquiry, open an issue on GitHub.</p>
+  <p><strong>Legal basis for processing:</strong> Legitimate interest (Article 6(1)(f) GDPR) — the extension processes only local technical metrics strictly necessary to provide the service the user has installed.</p>
+  <p><strong>Your rights:</strong> Under the GDPR you have the right to access, rectification, erasure, restriction of processing, and data portability. Since PerfMonitor stores no data outside your own device, these rights are fulfilled by design. For any inquiry, open an issue on GitHub.</p>
   <p><strong>Data transfers:</strong> No data is transferred outside your device. No third countries are involved.</p>
 
   <h2>Contact</h2>

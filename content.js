@@ -1,6 +1,15 @@
 // content.js — iniettato in ogni pagina
 // Raccoglie: JS Heap RAM, FPS, Long Tasks + overlay flottante always-on-top
 
+// Evita doppia iniezione se il content script viene re-iniettato
+if (document.getElementById('__perfmonitor_overlay__')) {
+	throw new Error('PerfMonitor already injected');
+}
+
+function isContextValid() {
+	try { return !!chrome.runtime?.id; } catch { return false; }
+}
+
 let fps = 0,
 	frameCount = 0,
 	lastFpsTime = performance.now();
@@ -181,6 +190,8 @@ function updateOverlay() {
 // ── RAM + send + overlay ogni secondo ───────────────────────────────────────
 
 setInterval(() => {
+	if (!isContextValid()) return;
+
 	if (performance.memory) {
 		ramMB = parseFloat((performance.memory.usedJSHeapSize / 1048576).toFixed(1));
 		ramTotalMB = parseFloat((performance.memory.totalJSHeapSize / 1048576).toFixed(1));

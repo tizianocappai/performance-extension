@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PerfMonitor — Real-time performance for Chrome</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #09090b;
+      --surface: #111113;
+      --border: #1e1e24;
+      --text: #e2e2e8;
+      --muted: #6b6b80;
+      --green: #22c55e;
+      --orange: #f59e0b;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --purple: #a855f7;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── NAV ─────────────────────────────────────────────── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 48px;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      background: rgba(9,9,11,0.85);
+      backdrop-filter: blur(12px);
+      z-index: 10;
+    }
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .nav-logo .dot {
+      width: 9px; height: 9px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    .nav-links { display: flex; gap: 32px; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 14px; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-cta {
+      background: var(--green);
+      color: #000;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    /* ── HERO ────────────────────────────────────────────── */
+    .hero {
+      text-align: center;
+      padding: 96px 24px 72px;
+      position: relative;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(34,197,94,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34,197,94,0.1);
+      border: 1px solid rgba(34,197,94,0.25);
+      color: var(--green);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 12px;
+      border-radius: 99px;
+      margin-bottom: 28px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .badge::before { content: '●'; font-size: 8px; }
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      max-width: 720px;
+      margin: 0 auto 24px;
+    }
+    h1 span { color: var(--green); }
+    .hero p {
+      color: var(--muted);
+      font-size: 18px;
+      max-width: 520px;
+      margin: 0 auto 48px;
+      line-height: 1.6;
+    }
+    .hero-actions { display: flex; gap: 14px; justify-content: center; }
+    .btn-primary {
+      background: var(--green);
+      color: #000;
+      padding: 12px 28px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      text-decoration: none;
+    }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      text-decoration: none;
+    }
+
+    /* ── LIVE METRICS TICKER ─────────────────────────────── */
+    .ticker {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      margin: 64px auto;
+      max-width: 760px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .ticker-item {
+      flex: 1;
+      padding: 20px 24px;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .ticker-item:last-child { border-right: none; }
+    .ticker-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .ticker-val {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1;
+      font-variant-numeric: tabular-nums;
+    }
+    .ticker-unit { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 3px; }
+    .ticker-bar {
+      height: 3px;
+      border-radius: 2px;
+      margin-top: 10px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .ticker-bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1s ease;
+    }
+
+    /* ── FEATURES GRID ───────────────────────────────────── */
+    section.features {
+      padding: 32px 48px 80px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .section-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--green);
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    .section-title {
+      font-size: clamp(1.5rem, 3vw, 2.2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 48px;
+    }
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .feature-icon {
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      margin-bottom: 16px;
+    }
+    .feature-card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+    .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ── MINI CHART ──────────────────────────────────────── */
+    .chart-section {
+      padding: 0 48px 80px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    .chart-title { font-size: 15px; font-weight: 600; }
+    .chart-legend { display: flex; gap: 20px; }
+    .legend-item { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+    canvas#main-chart { width: 100% !important; display: block; }
+
+    /* ── FOOTER ──────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      font-size: 13px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  </style>
+</head>
+<body>
+
+  <nav>
+    <div class="nav-logo">
+      <div class="dot"></div>
+      PerfMonitor
+    </div>
+    <div class="nav-links">
+      <a href="#">Features</a>
+      <a href="#">Docs</a>
+      <a href="#">Privacy</a>
+      <a href="#">GitHub</a>
+    </div>
+    <a class="nav-cta" href="#">Add to Chrome →</a>
+  </nav>
+
+  <section class="hero">
+    <div class="badge">Free Chrome Extension</div>
+    <h1>Real-time performance<br/>metrics for <span>every page</span></h1>
+    <p>Monitor JS heap memory, frame rate, CPU load, and long tasks — all from a single, always-visible popup.</p>
+    <div class="hero-actions">
+      <a class="btn-primary" href="#">Add to Chrome — it's free</a>
+      <a class="btn-secondary" href="#">View on GitHub</a>
+    </div>
+  </section>
+
+  <!-- Live metrics ticker -->
+  <div class="ticker" id="ticker">
+    <div class="ticker-item">
+      <div class="ticker-label">JS Heap RAM</div>
+      <div><span class="ticker-val" id="t-ram" style="color:var(--orange)">247</span><span class="ticker-unit">MB</span></div>
+      <div class="ticker-bar"><div class="ticker-bar-fill" id="b-ram" style="width:49%;background:var(--orange)"></div></div>
+    </div>
+    <div class="ticker-item">
+      <div class="ticker-label">Frame Rate</div>
+      <div><span class="ticker-val" id="t-fps" style="color:var(--green)">60</span><span class="ticker-unit">fps</span></div>
+      <div class="ticker-bar"><div class="ticker-bar-fill" id="b-fps" style="width:100%;background:var(--green)"></div></div>
+    </div>
+    <div class="ticker-item">
+      <div class="ticker-label">CPU Usage</div>
+      <div><span class="ticker-val" id="t-cpu" style="color:var(--green)">18</span><span class="ticker-unit">%</span></div>
+      <div class="ticker-bar"><div class="ticker-bar-fill" id="b-cpu" style="width:18%;background:var(--green)"></div></div>
+    </div>
+    <div class="ticker-item">
+      <div class="ticker-label">Long Tasks</div>
+      <div><span class="ticker-val" id="t-lt" style="color:var(--text)">3</span><span class="ticker-unit">&gt;50ms</span></div>
+      <div class="ticker-bar"><div class="ticker-bar-fill" id="b-lt" style="width:15%;background:var(--blue)"></div></div>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="chart-section">
+    <div class="chart-wrap">
+      <div class="chart-header">
+        <span class="chart-title">Performance — last 30 seconds</span>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:var(--green)"></div>FPS</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>RAM (MB)</div>
+          <div class="legend-item"><div class="legend-dot" style="background:var(--blue)"></div>CPU %</div>
+        </div>
+      </div>
+      <canvas id="main-chart" height="120"></canvas>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="section-label">What's measured</div>
+    <div class="section-title">Everything your page is doing,<br/>at a glance</div>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(34,197,94,0.1)"></div>
+        <h3>JS Heap Memory</h3>
+        <p>Live used / allocated / limit values with a progress bar. Alerts fire when you exceed 500 MB.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(59,130,246,0.1)"></div>
+        <h3>Frame Rate</h3>
+        <p>Measured via <code style="font-size:11px;background:#1e1e24;padding:1px 5px;border-radius:4px">requestAnimationFrame</code>. Color-coded: green ≥ 50, orange ≥ 30, red below.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(168,85,247,0.1)"></div>
+        <h3>CPU Usage</h3>
+        <p>System-wide CPU percentage sampled every second via the <code style="font-size:11px;background:#1e1e24;padding:1px 5px;border-radius:4px">chrome.system.cpu</code> API.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(245,158,11,0.1)"></div>
+        <h3>Long Tasks</h3>
+        <p>Counts every main-thread block over 50 ms — the root cause of janky, unresponsive UIs.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(239,68,68,0.1)"></div>
+        <h3>30-second Charts</h3>
+        <p>Sparkline graphs for FPS, RAM, and CPU show trends over time, not just the current snapshot.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon" style="background:rgba(34,197,94,0.1)"></div>
+        <h3>100% Local</h3>
+        <p>All data lives in <code style="font-size:11px;background:#1e1e24;padding:1px 5px;border-radius:4px">chrome.storage.session</code>. Nothing is sent anywhere, ever.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="nav-logo" style="font-size:14px">
+      <div class="dot" style="width:7px;height:7px"></div>
+      PerfMonitor
+    </div>
+    <span>Free &amp; open source · MIT License</span>
+    <span>Developed by <a href="https://www.linkedin.com/in/tiziano-cappai-1b5271153/" target="_blank" rel="noopener">Tiziano Cappai</a></span>
+    <a href="privacy-policy.html">Privacy Policy</a>
+  </footer>
+
+  <script>
+    // ── Animated ticker ──────────────────────────────────
+    const targets = { ram: 247, fps: 60, cpu: 18, lt: 3 };
+    const current = { ...targets };
+
+    function jitter(val, min, max, step) {
+      const delta = (Math.random() - 0.48) * step;
+      return Math.max(min, Math.min(max, Math.round(val + delta)));
+    }
+
+    function updateTicker() {
+      current.ram = jitter(current.ram, 180, 390, 12);
+      current.fps = jitter(current.fps, 45, 60, 3);
+      current.cpu = jitter(current.cpu, 8, 72, 8);
+      current.lt  = jitter(current.lt,  0, 18, 1);
+
+      const ramColor = current.ram > 400 ? 'var(--red)' : current.ram > 200 ? 'var(--orange)' : 'var(--green)';
+      const fpsColor = current.fps < 30  ? 'var(--red)' : current.fps < 50  ? 'var(--orange)' : 'var(--green)';
+      const cpuColor = current.cpu > 80  ? 'var(--red)' : current.cpu > 50  ? 'var(--orange)' : 'var(--green)';
+
+      set('t-ram', current.ram, ramColor); set('b-ram', current.ram / 500 * 100, ramColor);
+      set('t-fps', current.fps, fpsColor); set('b-fps', current.fps / 60 * 100, fpsColor);
+      set('t-cpu', current.cpu, cpuColor); set('b-cpu', current.cpu, cpuColor);
+      set('t-lt',  current.lt,  current.lt > 10 ? 'var(--red)' : 'var(--text)');
+      document.getElementById('b-lt').style.width = Math.min(current.lt * 5, 100) + '%';
+    }
+
+    function set(id, val, color) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = val;
+      if (color) el.style.color = color;
+      const bar = document.getElementById(id.replace('t-', 'b-'));
+      if (bar && color) bar.style.background = color;
+    }
+
+    setInterval(updateTicker, 1000);
+
+    // ── Main chart ───────────────────────────────────────
+    const LEN = 30;
+    const fpsH = Array.from({length: LEN}, () => 55 + Math.random() * 5);
+    const ramH = Array.from({length: LEN}, () => 200 + Math.random() * 80);
+    const cpuH = Array.from({length: LEN}, () => 10 + Math.random() * 30);
+
+    const cvs = document.getElementById('main-chart');
+
+    function drawMain() {
+      const dpr = window.devicePixelRatio || 1;
+      const W = cvs.parentElement.clientWidth - 56;
+      const H = 120;
+      cvs.width  = W * dpr;
+      cvs.height = H * dpr;
+      cvs.style.width  = W + 'px';
+      cvs.style.height = H + 'px';
+      const ctx = cvs.getContext('2d');
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, W, H);
+
+      // grid lines
+      ctx.strokeStyle = '#1e1e24';
+      ctx.lineWidth = 1;
+      [0.25, 0.5, 0.75].forEach(f => {
+        const y = H * f;
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+      });
+
+      drawLine(ctx, fpsH, 0, 60,  W, H, '#22c55e');
+      drawLine(ctx, ramH, 0, 500, W, H, '#f59e0b');
+      drawLine(ctx, cpuH, 0, 100, W, H, '#3b82f6');
+    }
+
+    function drawLine(ctx, data, min, max, W, H, color) {
+      const step = W / (data.length - 1);
+      const toY  = v => H - 4 - ((v - min) / (max - min)) * (H - 8);
+
+      ctx.beginPath();
+      ctx.moveTo(0, H);
+      data.forEach((v, i) => { i === 0 ? ctx.moveTo(0, toY(v)) : ctx.lineTo(i * step, toY(v)); });
+      ctx.lineTo((data.length - 1) * step, H);
+      ctx.closePath();
+      ctx.fillStyle = color + '18';
+      ctx.fill();
+
+      ctx.beginPath();
+      data.forEach((v, i) => { i === 0 ? ctx.moveTo(0, toY(v)) : ctx.lineTo(i * step, toY(v)); });
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.lineJoin = 'round';
+      ctx.stroke();
+    }
+
+    function tick() {
+      fpsH.push(jitter(fpsH.at(-1), 40, 60, 3));  fpsH.shift();
+      ramH.push(jitter(ramH.at(-1), 150, 420, 15)); ramH.shift();
+      cpuH.push(jitter(cpuH.at(-1), 5,  75, 8));  cpuH.shift();
+      drawMain();
+    }
+
+    drawMain();
+    setInterval(tick, 1000);
+    window.addEventListener('resize', drawMain);
+  </script>
+</body>
+</html>

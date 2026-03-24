@@ -1,7 +1,7 @@
 {
 	"manifest_version": 3,
 	"name": "PerfMonitor",
-	"version": "1.0.2",
+	"version": "1.0.3",
 	"description": "Monitor JS heap RAM, FPS, CPU, Core Web Vitals, network, and long tasks for the current page.",
 	"homepage_url": "https://tizianocappai.github.io/performance-extension/",
 	"permissions": [
@@ -9,7 +9,6 @@
 		"tabs",
 		"storage",
 		"notifications",
-		"scripting",
 		"system.cpu",
 		"system.memory",
 		"processes"
